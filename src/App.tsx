@@ -63,6 +63,7 @@ export default function App() {
       case 'recipe': return <Placeholder name="Recipe" />
       case 'alarms': return <Placeholder name="Alarms" />
       case 'kpi': return <Placeholder name="KPI" />
+      default: return <Placeholder name={activeRoute} />
     }
   }
 
@@ -117,7 +118,7 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar clock={clock} operatorCount={operatorCount} />
         <main className="flex-1 overflow-hidden">
-          <ErrorBoundary moduleName={activeRoute}>
+          <ErrorBoundary key={activeRoute} moduleName={activeRoute}>
             {renderModule()}
           </ErrorBoundary>
         </main>
