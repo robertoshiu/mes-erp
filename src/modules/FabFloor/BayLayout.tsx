@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Observable } from 'rxjs'
 import type { EquipStateEvent, E10State } from '../../lib/events'
 import { e10Colors, e10Symbols } from '../../lib/tokens'
