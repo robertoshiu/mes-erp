@@ -8,6 +8,7 @@ import { SpcModule } from './modules/SPC'
 import { ProductionModule } from './modules/Production'
 import { AlarmsModule } from './modules/Alarms'
 import { KpiDashboard } from './modules/KPI'
+import { RecipeModule } from './modules/Recipe'
 import { generateMasterData } from './data/master'
 import { createClock } from './lib/clock'
 import { createEventBus } from './lib/eventBus'
@@ -99,7 +100,7 @@ export default function App() {
       case 'production': return <ProductionModule eventBus={eventBus} masterData={masterData} />
       case 'equipment': return <EquipmentModule eventBus={eventBus} masterData={masterData} />
       case 'spc': return <SpcModule eventBus={eventBus} />
-      case 'recipe': return <Placeholder name="Recipe" />
+      case 'recipe': return <RecipeModule masterData={masterData} />
       case 'alarms': return <AlarmsModule eventBus={eventBus} />
       case 'kpi': return <KpiDashboard eventBus={eventBus} totalEquipment={masterData.equipment.length} />
       default: return <Placeholder name={activeRoute} />
