@@ -4,7 +4,8 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { TopBar } from './components/TopBar'
 import { generateMasterData } from './data/master'
 import { createClock } from './lib/clock'
-// eventBus will be created here once timeline engine is wired (Task 14)
+import { createEventBus } from './lib/eventBus'
+import { createTimelineEngine } from './data/timeline-engine'
 
 // Lazy placeholders — will be replaced with real modules in Day 2-3
 function Placeholder({ name }: { name: string }) {
@@ -28,7 +29,8 @@ const NAV_ITEMS: { route: ModuleRoute; label: string; icon: string; badgeKey?: '
 export default function App() {
   const masterData = useMemo(() => generateMasterData(), [])
   const clock = useMemo(() => createClock(), [])
-  // eventBus created in Task 14 when timeline engine is wired
+  const eventBus = useMemo(() => createEventBus(), [])
+  const engine = useMemo(() => createTimelineEngine(clock, eventBus, masterData), [clock, eventBus, masterData])
 
   const activeRoute = useUiStore(s => s.activeRoute)
   const setRoute = useUiStore(s => s.setRoute)
@@ -42,11 +44,42 @@ export default function App() {
     return () => window.removeEventListener('resize', handler)
   }, [])
 
-  // Start clock on mount
+  // Start clock + timeline engine on mount
   useEffect(() => {
+    engine.preRoll()
     clock.start()
-    return () => clock.destroy()
-  }, [clock])
+    engine.start()
+    return () => {
+      engine.stop()
+      clock.destroy()
+    }
+  }, [clock, engine])
+
+  // Subscribe to shift boundary events
+  useEffect(() => {
+    const sub = eventBus.ofTopic('shift.boundary').subscribe(e => {
+      useUiStore.getState().setShift(e.shiftCode)
+    })
+    return () => sub.unsubscribe()
+  }, [eventBus])
+
+  // Badge count subscription (throttled at 1s)
+  useEffect(() => {
+    let alarmCount = 0
+    let lotCount = 0
+    let downCount = 0
+    const sub = eventBus.all$().subscribe(e => {
+      if (e.topic === 'alarm.raised' && !e.ackOperatorId) alarmCount++
+      if (e.topic === 'alarm.raised' && e.ackOperatorId) alarmCount = Math.max(0, alarmCount - 1)
+      if (e.topic === 'lot.move') lotCount = masterData.lots.filter(l => l.status === 'in-process').length
+      if (e.topic === 'equip.state' && (e.toState === 'SDT' || e.toState === 'UDT')) downCount++
+      if (e.topic === 'equip.state' && e.fromState !== 'PROD' && e.toState === 'PROD') downCount = Math.max(0, downCount - 1)
+    })
+    const throttle = setInterval(() => {
+      useUiStore.getState().updateBadges({ alarms: alarmCount, production: lotCount, equipmentDown: downCount })
+    }, 1000)
+    return () => { sub.unsubscribe(); clearInterval(throttle) }
+  }, [eventBus, masterData])
 
   // Count on-shift operators (reactive to shift changes)
   const currentShift = useUiStore(s => s.currentShift)
