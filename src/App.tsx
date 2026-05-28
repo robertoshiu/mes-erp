@@ -5,6 +5,7 @@ import { TopBar } from './components/TopBar'
 import { FabFloor } from './modules/FabFloor'
 import { EquipmentModule } from './modules/Equipment'
 import { SpcModule } from './modules/SPC'
+import { ProductionModule } from './modules/Production'
 import { generateMasterData } from './data/master'
 import { createClock } from './lib/clock'
 import { createEventBus } from './lib/eventBus'
@@ -93,7 +94,7 @@ export default function App() {
   const renderModule = () => {
     switch (activeRoute) {
       case 'fab-floor': return <FabFloor eventBus={eventBus} masterData={masterData} />
-      case 'production': return <Placeholder name="Production" />
+      case 'production': return <ProductionModule eventBus={eventBus} masterData={masterData} />
       case 'equipment': return <EquipmentModule eventBus={eventBus} masterData={masterData} />
       case 'spc': return <SpcModule eventBus={eventBus} />
       case 'recipe': return <Placeholder name="Recipe" />
