@@ -4,7 +4,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { TopBar } from './components/TopBar'
 import { generateMasterData } from './data/master'
 import { createClock } from './lib/clock'
-import { createEventBus } from './lib/eventBus'
+// eventBus will be created here once timeline engine is wired (Task 14)
 
 // Lazy placeholders — will be replaced with real modules in Day 2-3
 function Placeholder({ name }: { name: string }) {
@@ -28,7 +28,7 @@ const NAV_ITEMS: { route: ModuleRoute; label: string; icon: string; badgeKey?: '
 export default function App() {
   const masterData = useMemo(() => generateMasterData(), [])
   const clock = useMemo(() => createClock(), [])
-  const eventBus = useMemo(() => createEventBus(1000), [])
+  // eventBus created in Task 14 when timeline engine is wired
 
   const activeRoute = useUiStore(s => s.activeRoute)
   const setRoute = useUiStore(s => s.setRoute)
@@ -48,11 +48,11 @@ export default function App() {
     return () => clock.destroy()
   }, [clock])
 
-  // Count on-shift operators
+  // Count on-shift operators (reactive to shift changes)
+  const currentShift = useUiStore(s => s.currentShift)
   const operatorCount = useMemo(() => {
-    const shift = useUiStore.getState().currentShift
-    return masterData.operators.filter(op => op.shift === shift).length
-  }, [masterData])
+    return masterData.operators.filter(op => op.shift === currentShift).length
+  }, [masterData, currentShift])
 
   const renderModule = () => {
     switch (activeRoute) {
@@ -71,7 +71,7 @@ export default function App() {
       <div className="flex items-center justify-center h-screen bg-[#F3F6F9] p-8 text-center">
         <div>
           <div className="text-sm text-[#6B7280]">
-            FabPulse requires a viewport of 1280px or wider.
+            FabPulse requires a viewport &ge; 1280px. Open on a desktop or rotate your tablet.
           </div>
         </div>
       </div>
