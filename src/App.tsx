@@ -4,6 +4,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { TopBar } from './components/TopBar'
 import { FabFloor } from './modules/FabFloor'
 import { EquipmentModule } from './modules/Equipment'
+import { SpcModule } from './modules/SPC'
 import { generateMasterData } from './data/master'
 import { createClock } from './lib/clock'
 import { createEventBus } from './lib/eventBus'
@@ -94,7 +95,7 @@ export default function App() {
       case 'fab-floor': return <FabFloor eventBus={eventBus} masterData={masterData} />
       case 'production': return <Placeholder name="Production" />
       case 'equipment': return <EquipmentModule eventBus={eventBus} masterData={masterData} />
-      case 'spc': return <Placeholder name="SPC" />
+      case 'spc': return <SpcModule eventBus={eventBus} />
       case 'recipe': return <Placeholder name="Recipe" />
       case 'alarms': return <Placeholder name="Alarms" />
       case 'kpi': return <Placeholder name="KPI" />
