@@ -3,6 +3,7 @@ import { useUiStore, type ModuleRoute } from './lib/uiStore'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { TopBar } from './components/TopBar'
 import { FabFloor } from './modules/FabFloor'
+import { EquipmentModule } from './modules/Equipment'
 import { generateMasterData } from './data/master'
 import { createClock } from './lib/clock'
 import { createEventBus } from './lib/eventBus'
@@ -92,7 +93,7 @@ export default function App() {
     switch (activeRoute) {
       case 'fab-floor': return <FabFloor eventBus={eventBus} masterData={masterData} />
       case 'production': return <Placeholder name="Production" />
-      case 'equipment': return <Placeholder name="Equipment" />
+      case 'equipment': return <EquipmentModule eventBus={eventBus} masterData={masterData} />
       case 'spc': return <Placeholder name="SPC" />
       case 'recipe': return <Placeholder name="Recipe" />
       case 'alarms': return <Placeholder name="Alarms" />
