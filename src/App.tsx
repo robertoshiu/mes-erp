@@ -2,6 +2,7 @@ import { useMemo, useEffect, useState } from 'react'
 import { useUiStore, type ModuleRoute } from './lib/uiStore'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { TopBar } from './components/TopBar'
+import { FabFloor } from './modules/FabFloor'
 import { generateMasterData } from './data/master'
 import { createClock } from './lib/clock'
 import { createEventBus } from './lib/eventBus'
@@ -89,7 +90,7 @@ export default function App() {
 
   const renderModule = () => {
     switch (activeRoute) {
-      case 'fab-floor': return <Placeholder name="FabFloor" />
+      case 'fab-floor': return <FabFloor eventBus={eventBus} masterData={masterData} />
       case 'production': return <Placeholder name="Production" />
       case 'equipment': return <Placeholder name="Equipment" />
       case 'spc': return <Placeholder name="SPC" />
