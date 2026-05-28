@@ -6,6 +6,7 @@ import { FabFloor } from './modules/FabFloor'
 import { EquipmentModule } from './modules/Equipment'
 import { SpcModule } from './modules/SPC'
 import { ProductionModule } from './modules/Production'
+import { AlarmsModule } from './modules/Alarms'
 import { generateMasterData } from './data/master'
 import { createClock } from './lib/clock'
 import { createEventBus } from './lib/eventBus'
@@ -98,7 +99,7 @@ export default function App() {
       case 'equipment': return <EquipmentModule eventBus={eventBus} masterData={masterData} />
       case 'spc': return <SpcModule eventBus={eventBus} />
       case 'recipe': return <Placeholder name="Recipe" />
-      case 'alarms': return <Placeholder name="Alarms" />
+      case 'alarms': return <AlarmsModule eventBus={eventBus} />
       case 'kpi': return <Placeholder name="KPI" />
       default: return <Placeholder name={activeRoute} />
     }
