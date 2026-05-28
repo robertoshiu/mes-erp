@@ -35,15 +35,12 @@ export function checkWesternElectric(points: ControlPoint[]): Violation[] {
       const allAbove = window.every(pt => pt.value > pt.centerline)
       const allBelow = window.every(pt => pt.value < pt.centerline)
       if (allAbove || allBelow) {
-        const alreadyReported = violations.some(v => v.rule === 2 && v.index === i)
-        if (!alreadyReported) {
-          violations.push({
-            rule: 2,
-            index: i,
-            severity: 'warn',
-            description: `9 consecutive points ${allAbove ? 'above' : 'below'} centerline ending at ${i}`,
-          })
-        }
+        violations.push({
+          rule: 2,
+          index: i,
+          severity: 'warn',
+          description: `9 consecutive points ${allAbove ? 'above' : 'below'} centerline ending at ${i}`,
+        })
       }
     }
 
@@ -54,7 +51,7 @@ export function checkWesternElectric(points: ControlPoint[]): Violation[] {
         if (j === i - 12) continue // need at least 2 diffs to check alternation
         const prevDiff = points[j].value - points[j - 1].value
         const prevPrevDiff = points[j - 1].value - points[j - 2].value
-        if ((prevDiff > 0 && prevPrevDiff > 0) || (prevDiff < 0 && prevPrevDiff < 0) || prevDiff === 0) {
+        if ((prevDiff > 0 && prevPrevDiff > 0) || (prevDiff < 0 && prevPrevDiff < 0) || prevDiff === 0 || prevPrevDiff === 0) {
           alternating = false
           break
         }
