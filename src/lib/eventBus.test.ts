@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { createEventBus } from './eventBus'
 import type { MesEvent, LotMoveEvent, EquipStateEvent } from './events'
 

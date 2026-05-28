@@ -57,7 +57,7 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
               <YAxis domain={[40, 60]} tick={{ fontSize: 11 }} stroke="#6B7280" />
               <Tooltip
                 contentStyle={{ fontSize: 11, fontFamily: 'monospace' }}
-                formatter={(value: number) => [value.toFixed(2), 'Value']}
+                formatter={(value: any) => [Number(value).toFixed(2), 'Value']}
               />
               <ReferenceLine y={UCL} stroke="#DC2626" strokeDasharray="8 4" label={{ value: 'UCL', fill: '#DC2626', fontSize: 10, position: 'right' }} />
               <ReferenceLine y={LCL} stroke="#DC2626" strokeDasharray="8 4" label={{ value: 'LCL', fill: '#DC2626', fontSize: 10, position: 'right' }} />

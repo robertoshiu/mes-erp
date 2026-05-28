@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Observable } from 'rxjs'
 import type { MesEvent } from '../lib/events'
-import { format } from 'date-fns'
 
 interface EventStreamProps {
   events$: Observable<MesEvent>

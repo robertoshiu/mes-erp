@@ -123,8 +123,16 @@
     }
   body {
     @apply bg-background text-foreground;
+    font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #1A1A1A;
+    background: #F3F6F9;
     }
   html {
     @apply font-sans;
+    }
+  .font-mono {
+    font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
     }
 }

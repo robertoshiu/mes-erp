@@ -48,8 +48,8 @@ export function KpiDashboard({ eventBus, totalEquipment }: KpiDashboardProps) {
   return (
     <div className="p-4 grid grid-cols-4 gap-3 h-full auto-rows-min">
       {TILES.map(tile => {
-        const value = currentKpi ? (currentKpi as Record<string, number>)[tile.key] : 0
-        const sparkData = history.map(h => ({ v: (h as Record<string, number>)[tile.key] }))
+        const value = currentKpi ? (currentKpi as any)[tile.key] : 0
+        const sparkData = history.map(h => ({ v: (h as any)[tile.key] }))
 
         return (
           <div key={tile.key} className="border border-[#D1D5DB] bg-white p-4">

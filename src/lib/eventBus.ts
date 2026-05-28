@@ -1,4 +1,4 @@
-import { Subject, Observable, map } from 'rxjs'
+import { Subject, Observable } from 'rxjs'
 import { filter } from 'rxjs/operators'
 import type { MesEvent, EventTopic } from './events'
 
