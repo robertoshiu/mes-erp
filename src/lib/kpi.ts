@@ -29,6 +29,9 @@ export interface KpiSnapshot {
   cycleTimeMinutes: number
 }
 
+// Approximate number of route steps per lot — scales per-move time to full cycle time
+const AVG_PROCESS_STEPS = 25
+
 // Baseline KPIs — used when no events have accumulated yet.
 const BASELINE: KpiSnapshot = {
   oee: 0.873,
@@ -51,9 +54,10 @@ export function computeKpis(events: MesEvent[], totalEquipment: number): KpiSnap
   const lotMoves = events.filter((e): e is LotMoveEvent => e.topic === 'lot.move')
   const equipStates = events.filter((e): e is EquipStateEvent => e.topic === 'equip.state')
 
-  // Time window (seconds)
-  const tMin = events[0].t
-  const tMax = events[events.length - 1].t
+  // Time window (seconds) — events may arrive out of order
+  const timestamps = events.map(e => e.t)
+  const tMin = Math.min(...timestamps)
+  const tMax = Math.max(...timestamps)
   const windowSec = Math.max(tMax - tMin, 1)
   const windowMin = windowSec / 60
 
@@ -101,6 +105,7 @@ export function computeKpis(events: MesEvent[], totalEquipment: number): KpiSnap
     mttrMinutes: repairs.length > 0 ? computeMTTR(repairTimeMin, repairs.length) : BASELINE.mttrMinutes,
     wipTurn: blend(lotMoves.length > 0 ? lotMoves.length / Math.max(windowMin / 60, 0.01) : BASELINE.wipTurn, BASELINE.wipTurn),
     throughputUnitsPerHour: blend(throughputPerHour, BASELINE.throughputUnitsPerHour),
-    cycleTimeMinutes: blend(lotMoves.length > 0 ? windowMin / Math.max(lotMoves.length, 1) * 25 : BASELINE.cycleTimeMinutes, BASELINE.cycleTimeMinutes),
+    // AVG_PROCESS_STEPS: approximate number of route steps per lot, used to scale per-move time to full cycle time
+    cycleTimeMinutes: blend(lotMoves.length > 0 ? windowMin / Math.max(lotMoves.length, 1) * AVG_PROCESS_STEPS : BASELINE.cycleTimeMinutes, BASELINE.cycleTimeMinutes),
   }
 }
