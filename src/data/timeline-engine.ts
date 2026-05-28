@@ -25,6 +25,7 @@ export function createTimelineEngine(
 
   const { equipment, operators, lots, recipes } = masterData
   const toolIds = equipment.map(e => e.toolId)
+  const engineers = operators.filter(o => o.role === 'engineer')
 
   function generateBackgroundEvent(t: number): MesEvent {
     const roll = bgRng()
@@ -53,7 +54,7 @@ export function createTimelineEngine(
       // Recipe load
       const tool = pick(equipment, bgRng)
       const recipe = pick(recipes, bgRng)
-      const op = pick(operators.filter(o => o.role === 'engineer'), bgRng)
+      const op = pick(engineers.length > 0 ? engineers : operators, bgRng)
       return {
         topic: 'recipe.load', t,
         toolId: tool.toolId, recipeId: recipe.recipeId,
