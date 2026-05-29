@@ -2,6 +2,7 @@ import { useMemo, useEffect, useState, lazy, Suspense, type ComponentType } from
 import {
   LayoutGrid, Boxes, Cpu, Activity, ClipboardList, AlertTriangle, Gauge as GaugeIcon, Hexagon,
   Network, CalendarRange, ShoppingCart, Factory, Warehouse, Truck, Package, Building2, ListTree, Landmark,
+  Radar, Ship, TrendingUp, BadgeCheck,
   ChevronDown, ChevronRight,
 } from 'lucide-react'
 import { useUiStore, type ModuleRoute, type BadgeCounts } from './lib/uiStore'
@@ -9,11 +10,16 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { TopBar } from './components/TopBar'
 import { generateMasterData } from './data/master'
 import { generateErpData } from './data/erp'
+import { generateScmData } from './data/scm'
 import { createClock } from './lib/clock'
 import { createEventBus } from './lib/eventBus'
 import { createTimelineEngine } from './data/timeline-engine'
 import { createErpTimelineEngine } from './data/erp/erp-timeline-engine'
 import { createBridge } from './data/erp/bridge'
+import { createScmTimelineEngine } from './data/scm/scm-timeline-engine'
+import { createShipmentDriver } from './data/scm/shipment-driver'
+import { useShipments } from './lib/useShipments'
+import { shipmentPosition } from './data/scm/shipmentPosition'
 
 // Route-level code-split: each module is its own chunk (recharts/framer load lazily).
 const FabFloor = lazy(() => import('./modules/FabFloor').then(m => ({ default: m.FabFloor })))
@@ -33,6 +39,10 @@ const MaterialsModule = lazy(() => import('./modules/erp/Materials').then(m => (
 const BusinessPartnersModule = lazy(() => import('./modules/erp/BusinessPartners').then(m => ({ default: m.BusinessPartnersModule })))
 const BomModule = lazy(() => import('./modules/erp/Bom').then(m => ({ default: m.BomModule })))
 const FinanceModule = lazy(() => import('./modules/erp/Finance').then(m => ({ default: m.FinanceModule })))
+const ControlTowerModule = lazy(() => import('./modules/scm/ControlTower').then(m => ({ default: m.ControlTowerModule })))
+const ShipmentsModule = lazy(() => import('./modules/scm/Shipments').then(m => ({ default: m.ShipmentsModule })))
+const DemandPlanningModule = lazy(() => import('./modules/scm/DemandPlanning').then(m => ({ default: m.DemandPlanningModule })))
+const SupplierScorecardsModule = lazy(() => import('./modules/scm/SupplierScorecards').then(m => ({ default: m.SupplierScorecardsModule })))
 
 type IconCmp = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
 
@@ -44,11 +54,13 @@ interface NavItem {
 }
 
 interface NavGroup { group: string; items: NavItem[] }
-interface NavDomain { domain: string; groups: NavGroup[] }
+// `labelClass` tints the domain group-label tick (Spec E): MES/ERP cyan, SCM indigo.
+interface NavDomain { domain: string; labelClass: string; groups: NavGroup[] }
 
 const DOMAINS: NavDomain[] = [
   {
     domain: 'MES',
+    labelClass: 'text-accent/70',
     groups: [
       { group: 'Operations', items: [
         { route: 'fab-floor', label: 'Fab Floor', Icon: LayoutGrid },
@@ -67,6 +79,7 @@ const DOMAINS: NavDomain[] = [
   },
   {
     domain: 'ERP',
+    labelClass: 'text-accent/70',
     groups: [
       { group: 'Planning', items: [
         { route: 'erp-cockpit', label: 'Document Flow', Icon: Network },
@@ -88,12 +101,26 @@ const DOMAINS: NavDomain[] = [
       ] },
     ],
   },
+  {
+    domain: 'SCM',
+    labelClass: 'text-accent-3/70',
+    groups: [
+      { group: 'Control Tower', items: [
+        { route: 'control-tower', label: 'Control Tower', Icon: Radar, badgeKey: 'disruptions' },
+        { route: 'shipments', label: 'Shipments', Icon: Ship, badgeKey: 'inTransit' },
+      ] },
+      { group: 'Planning', items: [
+        { route: 'demand-planning', label: 'Demand Planning', Icon: TrendingUp },
+        { route: 'supplier-scorecards', label: 'Supplier Scorecards', Icon: BadgeCheck },
+      ] },
+    ],
+  },
 ]
 
 // Badge color by semantic: alarms/shortages = critical pulse, late/down = warn, counts = accent.
 function badgeClass(key: keyof BadgeCounts): { cls: string; pulse: boolean } {
-  if (key === 'alarms' || key === 'shortages') return { cls: 'bg-critical text-white', pulse: true }
-  if (key === 'equipmentDown' || key === 'latePOs') return { cls: 'bg-warn/20 text-warn', pulse: false }
+  if (key === 'alarms' || key === 'shortages' || key === 'disruptions') return { cls: 'bg-critical text-white', pulse: true }
+  if (key === 'equipmentDown' || key === 'latePOs' || key === 'lateShipments') return { cls: 'bg-warn/20 text-warn', pulse: false }
   return { cls: 'bg-accent/15 text-accent', pulse: false }
 }
 
@@ -108,11 +135,14 @@ function ModuleSkeleton() {
 export default function App() {
   const masterData = useMemo(() => generateMasterData(), [])
   const erpData = useMemo(() => generateErpData(masterData), [masterData])
+  const scmData = useMemo(() => generateScmData(masterData, erpData), [masterData, erpData])
   const clock = useMemo(() => createClock(), [])
   const eventBus = useMemo(() => createEventBus(), [])
   const engine = useMemo(() => createTimelineEngine(clock, eventBus, masterData), [clock, eventBus, masterData])
   const erpEngine = useMemo(() => createErpTimelineEngine(clock, eventBus, erpData), [clock, eventBus, erpData])
   const bridge = useMemo(() => createBridge(clock, eventBus, masterData, erpData), [clock, eventBus, masterData, erpData])
+  const scmEngine = useMemo(() => createScmTimelineEngine(clock, eventBus, scmData), [clock, eventBus, scmData])
+  const scmDriver = useMemo(() => createShipmentDriver(clock, eventBus, masterData, erpData, scmData), [clock, eventBus, masterData, erpData, scmData])
 
   const activeRoute = useUiStore(s => s.activeRoute)
   const setRoute = useUiStore(s => s.setRoute)
@@ -134,21 +164,29 @@ export default function App() {
     return () => window.removeEventListener('resize', handler)
   }, [])
 
-  // Start clock + MES/ERP engines + bridge on mount
+  // Start clock + MES/ERP/SCM engines + bridge + shipment-driver on mount.
   useEffect(() => {
     engine.preRoll()
     erpEngine.preRoll()
+    scmEngine.preRoll()
     clock.start()
-    bridge.start()        // subscribe before the ERP engine releases orders
+    // Subscribe-before-emit (CRITICAL): the bridge AND the shipment-driver must
+    // subscribe before erpEngine.start() emits erp.po.created / lot.complete,
+    // or the first inbound/outbound legs are dropped (plan ARCH-2 ordering).
+    bridge.start()
+    scmDriver.start()
     engine.start()
     erpEngine.start()
+    scmEngine.start()
     return () => {
+      scmEngine.stop()
+      scmDriver.stop()
       erpEngine.stop()
       engine.stop()
       bridge.stop()
       clock.destroy()
     }
-  }, [clock, engine, erpEngine, bridge])
+  }, [clock, engine, erpEngine, bridge, scmEngine, scmDriver])
 
   // Subscribe to shift boundary events
   useEffect(() => {
@@ -184,6 +222,30 @@ export default function App() {
     return () => { sub.unsubscribe(); clearInterval(throttle) }
   }, [eventBus, masterData])
 
+  // SCM badge counts (throttled at 1s, mirroring the MES badge effect): inTransit
+  // + lateShipments read live from useShipments; disruptions track raised/cleared.
+  useEffect(() => {
+    let disruptionCount = 0
+    const sub = eventBus.all$().subscribe(e => {
+      if (e.topic === 'scm.disruption.raised') disruptionCount++
+      if (e.topic === 'scm.disruption.cleared') disruptionCount = Math.max(0, disruptionCount - 1)
+    })
+    const throttle = setInterval(() => {
+      const t = clock.loopT()
+      const shipments = useShipments.getState().shipments
+      let inTransit = 0
+      let lateShipments = 0
+      for (const s of shipments) {
+        if (s.status !== 'in-transit') continue
+        inTransit++
+        // "Late" = past its ETA but the arrival transition hasn't fired yet.
+        if (shipmentPosition(t, s.departureT, s.transitSeconds) >= 1) lateShipments++
+      }
+      useUiStore.getState().updateBadges({ inTransit, lateShipments, disruptions: disruptionCount })
+    }, 1000)
+    return () => { sub.unsubscribe(); clearInterval(throttle) }
+  }, [eventBus, clock])
+
   // Count on-shift operators (reactive to shift changes)
   const currentShift = useUiStore(s => s.currentShift)
   const operatorCount = useMemo(() => {
@@ -209,6 +271,10 @@ export default function App() {
       case 'business-partners': return <BusinessPartnersModule erpData={erpData} eventBus={eventBus} />
       case 'bom': return <BomModule erpData={erpData} eventBus={eventBus} />
       case 'finance': return <FinanceModule erpData={erpData} eventBus={eventBus} />
+      case 'control-tower': return <ControlTowerModule scmData={scmData} eventBus={eventBus} />
+      case 'shipments': return <ShipmentsModule scmData={scmData} eventBus={eventBus} />
+      case 'demand-planning': return <DemandPlanningModule scmData={scmData} eventBus={eventBus} />
+      case 'supplier-scorecards': return <SupplierScorecardsModule scmData={scmData} eventBus={eventBus} />
       default: return null
     }
   }
@@ -243,15 +309,15 @@ export default function App() {
           </span>
           <div className="leading-tight">
             <div className="text-base font-semibold text-ink-1 tracking-tight text-glow-soft">FabPulse</div>
-            <div className="text-[9px] uppercase tracking-[0.28em] text-ink-3">MES · ERP</div>
+            <div className="text-[9px] uppercase tracking-[0.28em] text-ink-3">MES · ERP · SCM</div>
           </div>
         </div>
 
-        {/* Nav: MES + ERP domains, collapsible groups */}
+        {/* Nav: MES + ERP + SCM domains, collapsible groups */}
         <div className="flex-1 overflow-y-auto py-2">
-          {DOMAINS.map(({ domain, groups }) => (
+          {DOMAINS.map(({ domain, labelClass, groups }) => (
             <div key={domain} className="mb-1.5">
-              <div className="px-4 pt-2.5 pb-1 text-[9px] font-bold uppercase tracking-[0.26em] text-accent/70">
+              <div className={`px-4 pt-2.5 pb-1 text-[9px] font-bold uppercase tracking-[0.26em] ${labelClass}`}>
                 {domain}
               </div>
               {groups.map(({ group, items }) => {

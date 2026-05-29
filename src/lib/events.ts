@@ -98,9 +98,10 @@ export type MesEvent =
 
 export type EventTopic = MesEvent['topic']
 
-// The full event space carried by the shared bus: MES + ERP.
+// The full event space carried by the shared bus: MES + ERP + SCM.
 // (eventBus is typed over AppEvent; ofTopic('equip.state') still narrows to the
 // MES variant, so existing modules need no change.)
 import type { ErpEvent } from './erpEvents'
-export type AppEvent = MesEvent | ErpEvent
+import type { ScmEvent } from './scmEvents'
+export type AppEvent = MesEvent | ErpEvent | ScmEvent
 export type AppTopic = AppEvent['topic']

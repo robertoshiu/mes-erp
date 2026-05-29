@@ -46,6 +46,15 @@ function eventMessage(event: AppEvent): string {
     case 'erp.po.received': return `PO ${event.poNo} received · ${event.materialNo} ×${event.qty}`
     case 'erp.gl.posting': return `GL ${event.accountNo} ${event.amount >= 0 ? '+' : ''}${Math.round(event.amount).toLocaleString()} · ${event.ref}`
     case 'erp.invoice.created': return `Invoice ${event.invoiceNo} · ${event.orderNo} $${Math.round(event.amount).toLocaleString()}`
+    case 'scm.forecast.updated': return `Forecast ${event.materialNo} · bucket ${event.bucket} → ${event.qty}`
+    case 'scm.shipment.created': return `Ship ${event.shipmentNo} · ${event.fromNode} → ${event.toNode} · ${event.materialNo} ×${event.qty}`
+    case 'scm.shipment.departed': return `Ship ${event.shipmentNo} departed · ${event.fromNode} → ${event.toNode}`
+    case 'scm.shipment.arrived': return `Ship ${event.shipmentNo} arrived @ ${event.toNode} · ${event.materialNo} ×${event.qty}`
+    case 'scm.shipment.delivered': return `Ship ${event.shipmentNo} delivered @ ${event.toNode} · ${event.materialNo} ×${event.qty}`
+    case 'scm.atp.promised': return `ATP ${event.salesOrderNo} · ${event.materialNo} ${event.promisedDate} (avail ${event.available})`
+    case 'scm.supplier.asn': return `ASN ${event.supplierName} · ${event.materialNo} ×${event.qty}`
+    case 'scm.disruption.raised': return `Disruption ${event.laneId} · ${event.fromNode} → ${event.toNode}: ${event.reason}`
+    case 'scm.disruption.cleared': return `Cleared ${event.laneId} · ${event.fromNode} → ${event.toNode}`
   }
 }
 
@@ -68,6 +77,15 @@ const TOPIC_META: Record<AppTopic, { short: string; color: string }> = {
   'erp.po.received': { short: 'PO', color: '#34D399' },
   'erp.gl.posting': { short: 'GL', color: '#94A3B8' },
   'erp.invoice.created': { short: 'INV', color: '#38BDF8' },
+  'scm.forecast.updated': { short: 'FCST', color: '#818CF8' },
+  'scm.shipment.created': { short: 'SHIP', color: '#38BDF8' },
+  'scm.shipment.departed': { short: 'SHIP', color: '#38BDF8' },
+  'scm.shipment.arrived': { short: 'ARRV', color: '#34D399' },
+  'scm.shipment.delivered': { short: 'DLVD', color: '#34D399' },
+  'scm.atp.promised': { short: 'ATP', color: '#22D3EE' },
+  'scm.supplier.asn': { short: 'ASN', color: '#FBBF24' },
+  'scm.disruption.raised': { short: 'DSRP', color: '#F43F5E' },
+  'scm.disruption.cleared': { short: 'CLR', color: '#34D399' },
 }
 
 const SEVERITY_STYLES: Record<string, string> = {

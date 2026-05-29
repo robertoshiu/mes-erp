@@ -82,7 +82,9 @@ export function createErpTimelineEngine(
         bpNo: ven.bpNo, vendorName: ven.name,
         materialNo: mat.materialNo, qty: (1 + Math.floor(rng() * 20)) * 10,
       }
-    } else if (roll < 0.72) {
+    } else if (roll < 0.6) {
+      // ARCH-3: ambient goods-movement narrowed (was <0.72) so SCM's PO-keyed
+      // inbound GR carries the Cockpit GR-lane — reduced, not zeroed.
       const mat = pick(materials, rng)
       const gr = rng() > 0.5
       return {

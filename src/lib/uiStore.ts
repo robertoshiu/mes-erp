@@ -20,6 +20,11 @@ export type ModuleRoute =
   | 'inventory'
   | 'procurement'
   | 'finance'
+  // SCM
+  | 'control-tower'
+  | 'shipments'
+  | 'demand-planning'
+  | 'supplier-scorecards'
 
 export interface SelectedEntity {
   type:
@@ -27,6 +32,8 @@ export interface SelectedEntity {
     // ERP
     | 'material' | 'businessPartner' | 'salesOrder' | 'plannedOrder'
     | 'prodOrder' | 'purchaseOrder' | 'costCenter' | 'glAccount'
+    // SCM
+    | 'shipment' | 'networkNode' | 'supplierScorecard'
   id: string
 }
 
@@ -38,6 +45,10 @@ export interface BadgeCounts {
   openOrders: number
   shortages: number
   latePOs: number
+  // SCM
+  inTransit: number
+  lateShipments: number
+  disruptions: number
 }
 
 interface UiState {
@@ -61,7 +72,7 @@ export const useUiStore = create<UiState>((set) => ({
   selectedEntity: null,
   selectEntity: (entity) => set({ selectedEntity: entity }),
 
-  badges: { alarms: 0, production: 0, equipmentDown: 0, openOrders: 0, shortages: 0, latePOs: 0 },
+  badges: { alarms: 0, production: 0, equipmentDown: 0, openOrders: 0, shortages: 0, latePOs: 0, inTransit: 0, lateShipments: 0, disruptions: 0 },
   updateBadges: (badges) =>
     set((state) => ({ badges: { ...state.badges, ...badges } })),
 

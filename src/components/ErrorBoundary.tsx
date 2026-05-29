@@ -30,16 +30,18 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback
       return (
-        <div className="flex flex-col items-center justify-center h-full gap-4 p-8 bg-[#F3F6F9]">
-          <div className="font-mono text-sm text-[#6B7280]">
-            {this.props.moduleName}: Event subscription error
+        <div className="flex flex-col items-center justify-center h-full gap-4 p-8 bg-canvas">
+          <div className="panel flex flex-col items-center gap-4 px-8 py-6">
+            <div className="font-mono text-sm text-ink-2">
+              {this.props.moduleName}: Event subscription error
+            </div>
+            <button
+              onClick={this.handleReload}
+              className="px-3 py-1.5 text-sm font-mono border border-edge rounded-sm text-accent hover:border-edge-strong"
+            >
+              Reload module
+            </button>
           </div>
-          <button
-            onClick={this.handleReload}
-            className="px-3 py-1.5 text-sm border border-[#D1D5DB] rounded-sm hover:bg-[#F3F6F9]"
-          >
-            Reload module
-          </button>
         </div>
       )
     }
