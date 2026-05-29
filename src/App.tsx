@@ -261,7 +261,8 @@ export default function App() {
                   <div key={gkey} className="mb-0.5">
                     <button
                       onClick={() => toggleGroup(gkey)}
-                      className="group/g w-full flex items-center gap-1 px-4 pt-1.5 pb-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-mute hover:text-ink-3 cursor-pointer transition-colors"
+                      aria-expanded={!isCollapsed}
+                      className="group/g w-full flex items-center gap-1 px-4 py-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-mute hover:text-ink-3 hover:bg-surface-3/40 cursor-pointer transition-colors"
                     >
                       {isCollapsed
                         ? <ChevronRight size={11} className="shrink-0" />
