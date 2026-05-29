@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 export type ModuleRoute =
+  // MES
   | 'fab-floor'
   | 'production'
   | 'equipment'
@@ -8,9 +9,24 @@ export type ModuleRoute =
   | 'recipe'
   | 'alarms'
   | 'kpi'
+  // ERP
+  | 'erp-cockpit'
+  | 'materials'
+  | 'business-partners'
+  | 'bom'
+  | 'sales-orders'
+  | 'mrp'
+  | 'production-orders'
+  | 'inventory'
+  | 'procurement'
+  | 'finance'
 
 export interface SelectedEntity {
-  type: 'lot' | 'equipment' | 'alarm' | 'recipe'
+  type:
+    | 'lot' | 'equipment' | 'alarm' | 'recipe'
+    // ERP
+    | 'material' | 'businessPartner' | 'salesOrder' | 'plannedOrder'
+    | 'prodOrder' | 'purchaseOrder' | 'costCenter' | 'glAccount'
   id: string
 }
 
@@ -18,6 +34,10 @@ export interface BadgeCounts {
   alarms: number
   production: number
   equipmentDown: number
+  // ERP
+  openOrders: number
+  shortages: number
+  latePOs: number
 }
 
 interface UiState {
@@ -41,7 +61,7 @@ export const useUiStore = create<UiState>((set) => ({
   selectedEntity: null,
   selectEntity: (entity) => set({ selectedEntity: entity }),
 
-  badges: { alarms: 0, production: 0, equipmentDown: 0 },
+  badges: { alarms: 0, production: 0, equipmentDown: 0, openOrders: 0, shortages: 0, latePOs: 0 },
   updateBadges: (badges) =>
     set((state) => ({ badges: { ...state.badges, ...badges } })),
 

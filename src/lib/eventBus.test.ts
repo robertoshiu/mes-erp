@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { createEventBus } from './eventBus'
-import type { MesEvent, LotMoveEvent, EquipStateEvent } from './events'
+import type { AppEvent, LotMoveEvent, EquipStateEvent } from './events'
 
 function makeLotMove(t: number, lotId = 'LOT-001'): LotMoveEvent {
   return {
@@ -49,7 +49,7 @@ describe('eventBus', () => {
 
   it('ring buffer emits via observable', () => {
     const bus = createEventBus(3)
-    const snapshots: MesEvent[][] = []
+    const snapshots: AppEvent[][] = []
     const sub = bus.ringBuffer$().subscribe(buf => snapshots.push([...buf]))
 
     bus.publish(makeLotMove(0))
@@ -68,7 +68,7 @@ describe('eventBus', () => {
 
   it('all$ emits all events regardless of topic', () => {
     const bus = createEventBus()
-    const received: MesEvent[] = []
+    const received: AppEvent[] = []
     const sub = bus.all$().subscribe(e => received.push(e))
 
     bus.publish(makeLotMove(0))
@@ -81,7 +81,7 @@ describe('eventBus', () => {
 
   it('publishBatch emits multiple events synchronously', () => {
     const bus = createEventBus()
-    const received: MesEvent[] = []
+    const received: AppEvent[] = []
     const sub = bus.all$().subscribe(e => received.push(e))
 
     bus.publishBatch([makeLotMove(0), makeLotMove(1), makeEquipState(2)])

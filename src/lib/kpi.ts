@@ -1,4 +1,4 @@
-import type { MesEvent, EquipStateEvent, LotMoveEvent } from './events'
+import type { AppEvent, EquipStateEvent, LotMoveEvent } from './events'
 
 export function computeOEE(availability: number, performance: number, quality: number): number {
   return Math.max(0, Math.min(1, availability * performance * quality))
@@ -48,7 +48,7 @@ const BASELINE: KpiSnapshot = {
  * Uses event counts and state transitions to estimate real-time KPIs.
  * Blends with baseline to avoid wild swings from small sample sizes.
  */
-export function computeKpis(events: MesEvent[], totalEquipment: number): KpiSnapshot {
+export function computeKpis(events: AppEvent[], totalEquipment: number): KpiSnapshot {
   if (events.length === 0) return { ...BASELINE }
 
   const lotMoves = events.filter((e): e is LotMoveEvent => e.topic === 'lot.move')

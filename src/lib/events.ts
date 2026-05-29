@@ -74,6 +74,18 @@ export type ShiftBoundaryEvent = {
   shiftCode: 'A' | 'B' | 'C'
 }
 
+/** Fired by the ERP bridge when a bridged lot finishes its route on the floor.
+ *  The bridge's "up" path (goods receipt + cost posting) triggers on this. */
+export type LotCompleteEvent = {
+  topic: 'lot.complete'
+  t: number
+  lotId: string
+  prodOrderNo: string
+  materialNo: string
+  productCode: string
+  qty: number
+}
+
 export type MesEvent =
   | LotMoveEvent
   | EquipStateEvent
@@ -82,5 +94,13 @@ export type MesEvent =
   | RecipeLoadEvent
   | KpiTickEvent
   | ShiftBoundaryEvent
+  | LotCompleteEvent
 
 export type EventTopic = MesEvent['topic']
+
+// The full event space carried by the shared bus: MES + ERP.
+// (eventBus is typed over AppEvent; ofTopic('equip.state') still narrows to the
+// MES variant, so existing modules need no change.)
+import type { ErpEvent } from './erpEvents'
+export type AppEvent = MesEvent | ErpEvent
+export type AppTopic = AppEvent['topic']

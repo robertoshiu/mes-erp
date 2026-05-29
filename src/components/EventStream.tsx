@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Observable } from 'rxjs'
-import type { MesEvent, EventTopic } from '../lib/events'
+import type { AppEvent, AppTopic } from '../lib/events'
 import { cn } from '@/lib/utils'
 
 interface EventStreamProps {
-  events$: Observable<MesEvent>
+  events$: Observable<AppEvent>
   maxVisible?: number
 }
 
 interface DisplayEvent {
-  event: MesEvent
+  event: AppEvent
   id: number
   pinned: boolean
   pinnedUntil: number
@@ -17,7 +17,7 @@ interface DisplayEvent {
 
 let eventCounter = 0
 
-function severityOf(event: MesEvent): 'critical' | 'major' | 'minor' | 'routine' {
+function severityOf(event: AppEvent): 'critical' | 'major' | 'minor' | 'routine' {
   if (event.topic === 'alarm.raised') {
     return event.severity === 'critical' ? 'critical' : event.severity === 'major' ? 'major' : 'minor'
   }
@@ -26,7 +26,7 @@ function severityOf(event: MesEvent): 'critical' | 'major' | 'minor' | 'routine'
   return 'routine'
 }
 
-function eventMessage(event: MesEvent): string {
+function eventMessage(event: AppEvent): string {
   switch (event.topic) {
     case 'lot.move': return `${event.lotId} → ${event.toToolId} (step ${event.routeStep})`
     case 'equip.state': return `${event.toolId}: ${event.fromState} → ${event.toState}`
@@ -35,10 +35,21 @@ function eventMessage(event: MesEvent): string {
     case 'recipe.load': return `${event.toolId} ← ${event.recipeId} ${event.recipeVersion}`
     case 'kpi.tick': return `OEE ${(event.oee * 100).toFixed(1)}% · Yield ${(event.yieldPct * 100).toFixed(1)}%`
     case 'shift.boundary': return `Shift ${event.kind}: ${event.shiftCode}`
+    case 'lot.complete': return `${event.lotId} complete · PO ${event.prodOrderNo}`
+    case 'erp.order.created': return `SO ${event.orderNo} · ${event.customerName} ×${event.qty}`
+    case 'erp.mrp.run': return `MRP run · ${event.shortages} shortages, ${event.plannedOrders} planned`
+    case 'erp.plannedorder.created': return `Planned ${event.plannedOrderNo} · ${event.materialNo} ×${event.qty}`
+    case 'erp.prodorder.released': return `Released ${event.orderNo} → ${event.materialNo} ×${event.qty}`
+    case 'erp.prodorder.status': return `${event.orderNo}: ${event.status}`
+    case 'erp.goods.movement': return `${event.movementType} ${event.materialNo} ×${event.qty} @ ${event.storageLoc}`
+    case 'erp.po.created': return `PO ${event.poNo} · ${event.vendorName} ${event.materialNo} ×${event.qty}`
+    case 'erp.po.received': return `PO ${event.poNo} received · ${event.materialNo} ×${event.qty}`
+    case 'erp.gl.posting': return `GL ${event.accountNo} ${event.amount >= 0 ? '+' : ''}${Math.round(event.amount).toLocaleString()} · ${event.ref}`
+    case 'erp.invoice.created': return `Invoice ${event.invoiceNo} · ${event.orderNo} $${Math.round(event.amount).toLocaleString()}`
   }
 }
 
-const TOPIC_META: Record<EventTopic, { short: string; color: string }> = {
+const TOPIC_META: Record<AppTopic, { short: string; color: string }> = {
   'lot.move': { short: 'LOT', color: '#38BDF8' },
   'equip.state': { short: 'EQP', color: '#818CF8' },
   'spc.violation': { short: 'SPC', color: '#FBBF24' },
@@ -46,6 +57,17 @@ const TOPIC_META: Record<EventTopic, { short: string; color: string }> = {
   'recipe.load': { short: 'RCP', color: '#34D399' },
   'kpi.tick': { short: 'KPI', color: '#22D3EE' },
   'shift.boundary': { short: 'SFT', color: '#74849E' },
+  'lot.complete': { short: 'DONE', color: '#34D399' },
+  'erp.order.created': { short: 'SO', color: '#38BDF8' },
+  'erp.mrp.run': { short: 'MRP', color: '#818CF8' },
+  'erp.plannedorder.created': { short: 'PLN', color: '#818CF8' },
+  'erp.prodorder.released': { short: 'PRD', color: '#22D3EE' },
+  'erp.prodorder.status': { short: 'PRD', color: '#22D3EE' },
+  'erp.goods.movement': { short: 'MOV', color: '#34D399' },
+  'erp.po.created': { short: 'PO', color: '#FBBF24' },
+  'erp.po.received': { short: 'PO', color: '#34D399' },
+  'erp.gl.posting': { short: 'GL', color: '#94A3B8' },
+  'erp.invoice.created': { short: 'INV', color: '#38BDF8' },
 }
 
 const SEVERITY_STYLES: Record<string, string> = {
