@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Observable } from 'rxjs'
-import type { MesEvent } from '../lib/events'
+import type { MesEvent, EventTopic } from '../lib/events'
+import { cn } from '@/lib/utils'
 
 interface EventStreamProps {
   events$: Observable<MesEvent>
@@ -27,21 +28,31 @@ function severityOf(event: MesEvent): 'critical' | 'major' | 'minor' | 'routine'
 
 function eventMessage(event: MesEvent): string {
   switch (event.topic) {
-    case 'lot.move': return `${event.lotId} moved to ${event.toToolId} (step ${event.routeStep})`
-    case 'equip.state': return `${event.toolId}: ${event.fromState} -> ${event.toState}`
-    case 'spc.violation': return `Rule ${event.ruleNumber} violation: ${event.controlPoint.value.toFixed(2)} (UCL=${event.controlPoint.ucl.toFixed(2)})`
-    case 'alarm.raised': return `[${event.severity.toUpperCase()}] ${event.message}`
-    case 'recipe.load': return `${event.toolId} loaded ${event.recipeId} ${event.recipeVersion}`
-    case 'kpi.tick': return `OEE=${(event.oee * 100).toFixed(1)}% Yield=${(event.yieldPct * 100).toFixed(1)}%`
+    case 'lot.move': return `${event.lotId} → ${event.toToolId} (step ${event.routeStep})`
+    case 'equip.state': return `${event.toolId}: ${event.fromState} → ${event.toState}`
+    case 'spc.violation': return `Rule ${event.ruleNumber}: ${event.controlPoint.value.toFixed(2)} (UCL ${event.controlPoint.ucl.toFixed(2)})`
+    case 'alarm.raised': return event.message
+    case 'recipe.load': return `${event.toolId} ← ${event.recipeId} ${event.recipeVersion}`
+    case 'kpi.tick': return `OEE ${(event.oee * 100).toFixed(1)}% · Yield ${(event.yieldPct * 100).toFixed(1)}%`
     case 'shift.boundary': return `Shift ${event.kind}: ${event.shiftCode}`
   }
 }
 
-const SEVERITY_STYLES = {
-  critical: 'border-l-[3px] border-l-[#DC2626] font-semibold bg-[#FEF2F2]',
-  major: 'border-l-[3px] border-l-[#B45309] font-medium bg-[#FFFBEB]',
-  minor: 'border-l border-l-[#F59E0B]',
-  routine: 'border-l border-l-[#D1D5DB]',
+const TOPIC_META: Record<EventTopic, { short: string; color: string }> = {
+  'lot.move': { short: 'LOT', color: '#38BDF8' },
+  'equip.state': { short: 'EQP', color: '#818CF8' },
+  'spc.violation': { short: 'SPC', color: '#FBBF24' },
+  'alarm.raised': { short: 'ALM', color: '#FB7185' },
+  'recipe.load': { short: 'RCP', color: '#34D399' },
+  'kpi.tick': { short: 'KPI', color: '#22D3EE' },
+  'shift.boundary': { short: 'SFT', color: '#74849E' },
+}
+
+const SEVERITY_STYLES: Record<string, string> = {
+  critical: 'border-l-[3px] border-l-critical bg-critical/10',
+  major: 'border-l-[3px] border-l-warn bg-warn/[0.07]',
+  minor: 'border-l-2 border-l-warn/60',
+  routine: 'border-l border-l-white/[0.06]',
 }
 
 export function EventStream({ events$, maxVisible = 50 }: EventStreamProps) {
@@ -66,7 +77,6 @@ export function EventStream({ events$, maxVisible = 50 }: EventStreamProps) {
           pinned: item.pinned && Date.now() < item.pinnedUntil,
         }))
         const next = [entry, ...unpinned].slice(0, maxVisible)
-        // Sort: pinned first, then by time descending
         next.sort((a, b) => {
           if (a.pinned && !b.pinned) return -1
           if (!a.pinned && b.pinned) return 1
@@ -93,20 +103,34 @@ export function EventStream({ events$, maxVisible = 50 }: EventStreamProps) {
     >
       {items.map(item => {
         const severity = severityOf(item.event)
+        const meta = TOPIC_META[item.event.topic]
         return (
           <div
             key={item.id}
-            className={`px-2 py-1.5 ${SEVERITY_STYLES[severity]} ${item.pinned ? 'bg-opacity-100' : ''}`}
+            className={cn(
+              'px-2.5 py-1.5 transition-colors hover:bg-surface-3/50',
+              SEVERITY_STYLES[severity],
+              item.pinned && severity !== 'routine' && 'animate-rise',
+            )}
           >
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[#6B7280] shrink-0">
+              <span
+                className="w-1.5 h-1.5 rounded-full shrink-0"
+                style={{ background: meta.color, boxShadow: `0 0 6px ${meta.color}` }}
+              />
+              <span
+                className="font-mono text-[9px] font-semibold tracking-wider px-1 rounded"
+                style={{ color: meta.color, background: `${meta.color}1a` }}
+              >
+                {meta.short}
+              </span>
+              <span className="font-mono text-[10px] text-ink-mute ml-auto tabular-nums">
                 {item.event.t.toFixed(1)}s
               </span>
-              <span className="font-mono text-[#6B7280] shrink-0">
-                {item.event.topic}
-              </span>
             </div>
-            <div className="mt-0.5 text-[#303030]">{eventMessage(item.event)}</div>
+            <div className={cn('mt-1 leading-snug', severity === 'critical' ? 'text-ink-1 font-medium' : 'text-ink-2')}>
+              {eventMessage(item.event)}
+            </div>
           </div>
         )
       })}
