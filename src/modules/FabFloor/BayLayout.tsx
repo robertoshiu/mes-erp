@@ -51,8 +51,18 @@ export function BayLayout({ equipment, equipState$, lotMove$ }: BayLayoutProps) 
   const svgHeight = SVG_HEIGHT
   const bayWidth = BAY_WIDTH
   const bayHeight = BAY_HEIGHT
-  const tileSize = TILE_SIZE
   const tileGap = TILE_GAP
+  const innerPad = 10
+  // The largest bay (by tool count) drives a tile size that always fits inside the
+  // bay frame. Without this, 7-slot bays overrun the right border by ~8px.
+  const maxSlots = useMemo(
+    () => equipment.reduce((m, e) => Math.max(m, e.slotInBay + 1), 1),
+    [equipment],
+  )
+  const tileSize = Math.max(
+    14,
+    Math.min(TILE_SIZE, Math.floor((bayWidth - 10 - innerPad * 2 - tileGap * (maxSlots - 1)) / maxSlots)),
+  )
 
   // toolId -> tile center, using the SAME coordinate math as the tiles below.
   const toolPos = useMemo(() => {
@@ -62,12 +72,12 @@ export function BayLayout({ equipment, equipState$, lotMove$ }: BayLayoutProps) 
       const row = Math.floor(eq.bayIndex / 4)
       const bayX = col * BAY_WIDTH + 15
       const bayY = row * (BAY_HEIGHT + 40) + 30
-      const tileX = bayX + 8 + eq.slotInBay * (TILE_SIZE + TILE_GAP)
+      const tileX = bayX + innerPad + eq.slotInBay * (tileSize + tileGap)
       const tileY = bayY + 36
-      map.set(eq.toolId, { cx: tileX + TILE_SIZE / 2, cy: tileY + TILE_SIZE / 2 })
+      map.set(eq.toolId, { cx: tileX + tileSize / 2, cy: tileY + tileSize / 2 })
     }
     return map
-  }, [equipment])
+  }, [equipment, tileSize, tileGap, innerPad])
 
   // Wafer-flow particles travelling between tools on lot moves.
   const [particles, setParticles] = useState<Particle[]>([])
@@ -166,7 +176,7 @@ export function BayLayout({ equipment, equipState$, lotMove$ }: BayLayoutProps) 
           const row = Math.floor(eq.bayIndex / 4)
           const bayX = col * bayWidth + 15
           const bayY = row * (bayHeight + 40) + 30
-          const tileX = bayX + 8 + eq.slotInBay * (tileSize + tileGap)
+          const tileX = bayX + innerPad + eq.slotInBay * (tileSize + tileGap)
           const tileY = bayY + 36
           const color = e10Colors[state]
           const halo = e10Glow[state]
