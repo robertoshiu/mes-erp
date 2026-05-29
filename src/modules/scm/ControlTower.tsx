@@ -267,8 +267,22 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
     return m
   }, [laneGeos])
 
-  // Live disruptions, hover tooltip, arrival beats.
-  const [disruptions, dispatchDisruption] = useReducer(disruptionReducer, {})
+  // Live disruptions, hover tooltip, arrival beats. Hydrate the disruption state
+  // from the bus ring buffer on mount (fold raised/cleared) so a disruption that
+  // was raised BEFORE the user navigated here is shown immediately — matching the
+  // sidebar badge instead of an empty panel.
+  const [disruptions, dispatchDisruption] = useReducer(
+    disruptionReducer,
+    eventBus,
+    (bus): DisruptionState => {
+      const state: DisruptionState = {}
+      for (const e of bus.getBuffer()) {
+        if (e.topic === 'scm.disruption.raised') state[e.laneId] = e.reason
+        else if (e.topic === 'scm.disruption.cleared') delete state[e.laneId]
+      }
+      return state
+    },
+  )
   const [tip, setTip] = useState<DotTip | null>(null)
   const [beats, setBeats] = useState<Beat[]>([])
 
