@@ -57,6 +57,53 @@ function StateDistribution({ states, total }: { states: Record<string, E10State>
   )
 }
 
+/**
+ * Progressively reveals `text` like a live console feed. Re-types whenever
+ * `text` changes. Honors prefers-reduced-motion by revealing instantly.
+ */
+function Typewriter({ text, speed = 18 }: { text: string; speed?: number }) {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    const reduce =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    if (reduce) {
+      setCount(text.length)
+      return
+    }
+
+    setCount(0)
+    const id = setInterval(() => {
+      setCount(prev => {
+        const next = prev + 3
+        if (next >= text.length) {
+          clearInterval(id)
+          return text.length
+        }
+        return next
+      })
+    }, speed)
+
+    return () => clearInterval(id)
+  }, [text, speed])
+
+  const typing = count < text.length
+
+  return (
+    <span className="whitespace-pre-wrap">
+      <span className="whitespace-pre-wrap">{text.slice(0, count)}</span>
+      {typing && (
+        <span className="animate-blink inline-block w-[1ch] text-accent" aria-hidden="true">
+          ▄
+        </span>
+      )}
+    </span>
+  )
+}
+
 export function EquipmentModule({ eventBus, masterData }: EquipmentModuleProps) {
   const [states, setStates] = useState<Record<string, E10State>>(() => {
     const m: Record<string, E10State> = {}
@@ -191,7 +238,15 @@ export function EquipmentModule({ eventBus, masterData }: EquipmentModuleProps) 
                     <span className="animate-pulse-soft text-accent">_</span>
                   </div>
                 )}
-                {secsLog.map((msg, i) => (
+                {secsLog.length > 0 && (
+                  <div className="mb-2 border-b border-edge pb-2 last:border-b-0 flex gap-2">
+                    <span className="select-none text-e10-prod shrink-0">&gt;</span>
+                    <pre className="whitespace-pre-wrap text-ink-2 m-0">
+                      <Typewriter text={secsLog[0]} />
+                    </pre>
+                  </div>
+                )}
+                {secsLog.slice(1).map((msg, i) => (
                   <div key={i} className="mb-2 border-b border-edge pb-2 last:border-b-0 flex gap-2">
                     <span className="select-none text-e10-prod shrink-0">&gt;</span>
                     <pre className="whitespace-pre-wrap text-ink-2 m-0">{msg}</pre>

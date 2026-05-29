@@ -369,6 +369,13 @@
 .row-hot { animation: fp-row-hot 2.4s ease-in-out infinite; }
 .row-superhot { animation: fp-row-superhot 1.5s ease-in-out infinite; }
 
+/* Terminal cursor blink (SECS console typewriter) */
+@keyframes fp-blink {
+  0%, 50%      { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+.animate-blink { animation: fp-blink 1s step-end infinite; }
+
 /* Scanline sweep used on hero panels (decorative) */
 .scan-sweep { position: relative; overflow: hidden; }
 .scan-sweep::after {
@@ -384,6 +391,7 @@
   .animate-pulse-glow,
   .animate-pulse-soft,
   .animate-sonar,
+  .animate-blink,
   .row-hot,
   .row-superhot,
   .scan-sweep::after { animation: none !important; }

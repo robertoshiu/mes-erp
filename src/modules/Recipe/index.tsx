@@ -5,10 +5,10 @@ import {
   Layers,
   Hexagon,
   Server,
-  GitBranch,
+  GitCommitVertical,
+  ArrowRight,
   ScrollText,
   ClipboardList,
-  Users,
 } from 'lucide-react'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
 import { useUiStore } from '../../lib/uiStore'
@@ -18,6 +18,37 @@ import type { Recipe } from '../../data/master/recipes'
 
 interface RecipeModuleProps {
   masterData: MasterData
+}
+
+type BumpType = 'major' | 'minor' | 'patch' | 'initial'
+
+/** Parse a 'vX.Y.Z' string into [major, minor, patch] numbers (missing parts -> 0). */
+function parseVersion(v: string): [number, number, number] {
+  const cleaned = v.trim().replace(/^v/i, '')
+  const [major = 0, minor = 0, patch = 0] = cleaned
+    .split('.')
+    .map(n => {
+      const parsed = parseInt(n, 10)
+      return Number.isNaN(parsed) ? 0 : parsed
+    })
+  return [major, minor, patch]
+}
+
+/** Classify the semantic jump between a previous and current version string. */
+function bumpType(prev: string, curr: string): Exclude<BumpType, 'initial'> {
+  const [pMaj, pMin] = parseVersion(prev)
+  const [cMaj, cMin] = parseVersion(curr)
+  if (pMaj !== cMaj) return 'major'
+  if (pMin !== cMin) return 'minor'
+  return 'patch'
+}
+
+/** Color + short label for each bump type. */
+const BUMP_META: Record<BumpType, { color: string; label: string }> = {
+  major: { color: '#22D3EE', label: 'MAJOR' },
+  minor: { color: '#38BDF8', label: 'MINOR' },
+  patch: { color: '#818CF8', label: 'PATCH' },
+  initial: { color: '#64748B', label: 'INITIAL' },
 }
 
 /** Small lucide glyph keyed by tool-type group (decorative only). */
@@ -164,47 +195,39 @@ export function RecipeModule({ masterData }: RecipeModuleProps) {
               </div>
             </Panel>
 
-            {/* Version diff */}
-            {selectedRecipe.versions.length >= 2 && (
-              <Panel className="overflow-hidden">
-                <PanelHeader
-                  title="Version History"
-                  subtitle="Latest change"
-                  icon={<GitBranch size={15} strokeWidth={1.9} />}
-                />
-                <div className="font-mono text-xs">
-                  {selectedRecipe.versions.slice(-2).map((ver, i) => {
-                    const isNew = i === 1
-                    return (
-                      <div
-                        key={ver.version}
-                        className={cn(
-                          'px-3.5 py-2 border-l-2',
-                          isNew
-                            ? 'bg-e10-prod/10 border-l-e10-prod'
-                            : 'bg-critical/10 border-l-critical',
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className={cn('font-semibold', isNew ? 'text-e10-prod' : 'text-critical')}>
-                            <span className="inline-block w-3.5">{isNew ? '+' : '−'}</span>
-                            {ver.version}
-                          </span>
-                          <span className="text-ink-2">{ver.author}</span>
-                        </div>
-                        <div className="text-ink-3 mt-1 pl-3.5">{ver.changeNote}</div>
-                      </div>
-                    )
-                  })}
+            {/* Latest-change diff summary (only when there is a delta to show) */}
+            {selectedRecipe.versions.length >= 2 && (() => {
+              const all = selectedRecipe.versions
+              const prevVer = all[all.length - 2]
+              const currVer = all[all.length - 1]
+              const bump = bumpType(prevVer.version, currVer.version)
+              const meta = BUMP_META[bump]
+              return (
+                <div className="flex flex-wrap items-center gap-3 px-3.5 py-3 panel">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-3">
+                    Latest change
+                  </span>
+                  <div className="flex items-center gap-2 font-mono text-xs">
+                    <span className="text-ink-3">{prevVer.version}</span>
+                    <ArrowRight size={13} strokeWidth={2} className="text-ink-mute" />
+                    <span className="text-accent text-glow-soft">{currVer.version}</span>
+                  </div>
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-[0.12em] font-mono"
+                    style={{ backgroundColor: `${meta.color}1f`, color: meta.color }}
+                  >
+                    {meta.label}
+                  </span>
+                  <span className="text-ink-2 text-xs min-w-0 truncate">{currVer.changeNote}</span>
                 </div>
-              </Panel>
-            )}
+              )
+            })()}
 
-            {/* Sign-off chain */}
+            {/* Version Timeline (commit-graph) — subsumes the old sign-off chain */}
             <Panel className="overflow-hidden">
               <PanelHeader
-                title="Sign-off Chain"
-                icon={<Users size={15} strokeWidth={1.9} />}
+                title="Version History"
+                icon={<GitCommitVertical size={15} strokeWidth={1.9} />}
                 right={
                   <span className="metric-value text-[11px] text-ink-3 tabular-nums">
                     {selectedRecipe.versions.length}
@@ -212,17 +235,83 @@ export function RecipeModule({ masterData }: RecipeModuleProps) {
                 }
               />
               <div>
-                {selectedRecipe.versions.map(ver => (
-                  <div
-                    key={ver.version}
-                    className="flex items-center gap-2.5 px-3.5 py-2 text-xs border-b border-edge/60 last:border-b-0"
-                  >
-                    <span className="font-mono text-accent">{ver.version}</span>
-                    <span className="text-ink-3">by</span>
-                    <span className="font-mono text-ink-2">{ver.author}</span>
-                    <span className="font-mono text-ink-3 ml-auto tabular-nums">{ver.timestamp}</span>
-                  </div>
-                ))}
+                {selectedRecipe.versions
+                  .map((ver, idx) => {
+                    // Bump is relative to the chronological predecessor; oldest = 'initial'.
+                    const bump: BumpType =
+                      idx === 0
+                        ? 'initial'
+                        : bumpType(selectedRecipe.versions[idx - 1].version, ver.version)
+                    return { ver, bump, idx }
+                  })
+                  // Newest first for display.
+                  .reverse()
+                  .map(({ ver, bump, idx }, rowIdx, rows) => {
+                    const meta = BUMP_META[bump]
+                    const isCurrent = ver.version === selectedRecipe.currentVersion
+                    const isFirstRow = rowIdx === 0
+                    const isLastRow = rowIdx === rows.length - 1
+                    return (
+                      <div
+                        key={`${ver.version}-${idx}`}
+                        className="group relative flex items-stretch gap-3 px-3.5 py-2.5 border-b border-edge last:border-b-0 transition-colors hover:bg-surface-3/40"
+                      >
+                        {/* Connector + node rail */}
+                        <div className="relative w-4 shrink-0 flex justify-center">
+                          {/* connector line segments (hidden at the rail's open ends) */}
+                          <span
+                            className={cn(
+                              'absolute left-1/2 -translate-x-1/2 w-px bg-edge-strong',
+                              isFirstRow ? 'top-1/2' : 'top-0',
+                              isLastRow ? 'bottom-1/2' : 'bottom-0',
+                            )}
+                            aria-hidden
+                          />
+                          {/* node */}
+                          <span
+                            className="relative z-10 mt-1 rounded-full border"
+                            style={{
+                              width: isCurrent ? 13 : 9,
+                              height: isCurrent ? 13 : 9,
+                              backgroundColor: meta.color,
+                              borderColor: meta.color,
+                              boxShadow: isCurrent ? `0 0 0 3px ${meta.color}33, 0 0 10px ${meta.color}aa` : 'none',
+                            }}
+                            aria-hidden
+                          />
+                        </div>
+
+                        {/* Version content */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                              className={cn(
+                                'font-mono text-xs',
+                                isCurrent ? 'text-accent text-glow-soft font-semibold' : 'text-ink-1',
+                              )}
+                            >
+                              {ver.version}
+                            </span>
+                            {isCurrent && (
+                              <span
+                                className="px-1.5 py-px rounded text-[9px] font-semibold tracking-[0.14em] font-mono"
+                                style={{ backgroundColor: `${meta.color}22`, color: meta.color }}
+                              >
+                                CURRENT
+                              </span>
+                            )}
+                            <span className="px-1.5 py-px rounded bg-surface-3 font-mono text-[10px] text-ink-2">
+                              {ver.author}
+                            </span>
+                            <span className="ml-auto font-mono text-[10px] text-ink-3 tabular-nums shrink-0">
+                              {ver.timestamp}
+                            </span>
+                          </div>
+                          <div className="text-ink-2 text-xs mt-0.5">{ver.changeNote}</div>
+                        </div>
+                      </div>
+                    )
+                  })}
               </div>
             </Panel>
           </div>
