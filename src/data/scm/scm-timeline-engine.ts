@@ -13,6 +13,11 @@ import type { ScmData, Lane } from './types'
 
 const AMBIENT_PER_SEC = 1
 
+// A disruption must stay raised at least this long (loop seconds) before it is
+// eligible to be ambient-cleared — otherwise it flashes by too fast for a viewer
+// to perceive, click, or read (a disruption could previously live ~1s).
+const MIN_DISRUPTION_DWELL_S = 30
+
 const DISRUPTION_REASONS = [
   'port congestion',
   'customs hold',
@@ -41,8 +46,9 @@ export function createScmTimelineEngine(
   const bucketCount = forecasts[0]?.buckets.length ?? 6
 
   let ambientAccumulator = 0
-  // Lanes currently flagged disrupted this loop (so we can clear them later).
-  const openDisruptions: Lane[] = []
+  // Lanes currently flagged disrupted this loop (with the time they were raised,
+  // so a minimum dwell can be enforced before clearing).
+  const openDisruptions: { lane: Lane; raisedT: number }[] = []
   // Spine beats fired this loop (reset on boundary).
   let didPortDelay = false
   let didDemandSpike = false
@@ -71,19 +77,33 @@ export function createScmTimelineEngine(
     } else if (roll < 0.9 && lanes.length && openDisruptions.length === 0) {
       // Raise a disruption on a lane (only one ambient disruption open at a time).
       const lane = pick(lanes, rng)
-      openDisruptions.push(lane)
+      openDisruptions.push({ lane, raisedT: t })
       return {
         topic: 'scm.disruption.raised', t,
         laneId: lane.id, fromNode: lane.from, toNode: lane.to,
         reason: pick(DISRUPTION_REASONS, rng),
       }
     } else if (openDisruptions.length > 0) {
-      // Clear the oldest open disruption.
-      const lane = openDisruptions.shift()!
-      return {
-        topic: 'scm.disruption.cleared', t,
-        laneId: lane.id, fromNode: lane.from, toNode: lane.to,
+      // Only clear the oldest open disruption once it has been visible long enough
+      // (MIN_DISRUPTION_DWELL_S) — otherwise it would flash by before a viewer can
+      // perceive it. While dwelling, keep the feed warm with a forecast beat.
+      const oldest = openDisruptions[0]
+      if (t - oldest.raisedT >= MIN_DISRUPTION_DWELL_S) {
+        openDisruptions.shift()
+        return {
+          topic: 'scm.disruption.cleared', t,
+          laneId: oldest.lane.id, fromNode: oldest.lane.from, toNode: oldest.lane.to,
+        }
       }
+      if (materialNos.length) {
+        const materialNo = pick(materialNos, rng)
+        return {
+          topic: 'scm.forecast.updated', t,
+          materialNo, bucket: Math.floor(rng() * bucketCount),
+          qty: (1 + Math.floor(rng() * 40)) * 25,
+        }
+      }
+      return { topic: 'scm.forecast.updated', t, materialNo: 'MAT-0', bucket: 0, qty: 25 }
     } else if (materialNos.length) {
       // Fallback: another forecast update keeps the feed warm.
       const materialNo = pick(materialNos, rng)
@@ -107,7 +127,7 @@ export function createScmTimelineEngine(
     if (!didPortDelay && t >= 20 && lanes.length) {
       didPortDelay = true
       const lane = pick(lanes, rng)
-      openDisruptions.push(lane)
+      openDisruptions.push({ lane, raisedT: t })
       eventBus.publish({
         topic: 'scm.disruption.raised', t,
         laneId: lane.id, fromNode: lane.from, toNode: lane.to,
@@ -139,6 +159,16 @@ export function createScmTimelineEngine(
   }
 
   function resetLoop(loopIndex: number) {
+    // Emit a cleared for every still-open disruption before wiping the list — the
+    // loop boundary would otherwise leave consumers (the Control Tower map) showing
+    // a disruption that never gets a matching cleared event.
+    const tNow = clock.loopT()
+    for (const d of openDisruptions) {
+      eventBus.publish({
+        topic: 'scm.disruption.cleared', t: tNow,
+        laneId: d.lane.id, fromNode: d.lane.from, toNode: d.lane.to,
+      })
+    }
     rng = seededRng(loopIndex, 2000)
     ambientAccumulator = 0
     openDisruptions.length = 0

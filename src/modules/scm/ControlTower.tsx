@@ -291,9 +291,19 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
       setBeats(prev => [...prev.slice(-5), { id, x: n.x, y: n.y, kind }])
     }
 
+    let lastT = -1
     const subs = [
       // Slave the local loop-clock to the shared clock via every event's `t`.
-      eventBus.all$().subscribe(e => localClock.sync(e.t)),
+      // Also detect the loop wrap (t resets 180→0) and clear any disruptions/beats
+      // the map is still showing, so nothing stale carries across the boundary.
+      eventBus.all$().subscribe(e => {
+        localClock.sync(e.t)
+        if (lastT >= 0 && e.t < lastT - 30) {
+          dispatchDisruption({ kind: 'reset' })
+          setBeats([])
+        }
+        lastT = e.t
+      }),
       eventBus.ofTopic('scm.disruption.raised').subscribe(e =>
         dispatchDisruption({ kind: 'raise', laneId: e.laneId, reason: e.reason }),
       ),
@@ -303,9 +313,9 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
       eventBus.ofTopic('scm.shipment.arrived').subscribe(e => fireBeat(e.toNode, 'arrived')),
       eventBus.ofTopic('scm.shipment.delivered').subscribe(e => fireBeat(e.toNode, 'delivered')),
     ]
-    // On the loop boundary the driver resets shipments; clear stale disruptions too.
-    // (We detect the wrap lazily — a cleared/raised pair keeps the map honest; a
-    // hard reset isn't exposed here, so we let cleared events drain naturally.)
+    // Disruptions clear two ways: the engine emits a `cleared` for each open lane
+    // at the loop boundary (and after a min-dwell during the loop), and the wrap
+    // detector above resets the reducer as a belt-and-suspenders.
     return () => {
       for (const s of subs) s.unsubscribe()
     }
@@ -415,10 +425,11 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
         title: `${g.from.name} → ${g.to.name}`,
         subtitle: `${g.lane.mode.toUpperCase()} lane · ${g.lane.transitDays}d transit`,
         related,
+        disruptionReason: disruptions[g.lane.id] as string | undefined,
       }
     }
     return null
-  }, [selectedEntity, nodeById, laneGeoById, shipments])
+  }, [selectedEntity, nodeById, laneGeoById, shipments, disruptions])
 
   return (
     <div className="flex h-full flex-col gap-3 p-4">
@@ -777,6 +788,42 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
           {/* Decorative scan sweep depth (CSS, reduced-motion aware). */}
           <div className="scan-sweep pointer-events-none absolute inset-0 rounded-lg" aria-hidden />
 
+          {/* Active Disruptions — a persistent, clickable list so disruptions are
+              never just a fleeting red flash; each row selects (and highlights) its
+              lane and opens the drill-in with the reason. */}
+          {Object.keys(disruptions).length > 0 && (
+            <div className="glass hud-frame absolute top-2 left-2 z-10 flex max-w-[248px] flex-col gap-1 rounded-md px-3 py-2">
+              <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.16em] text-critical">
+                <TriangleAlert size={11} strokeWidth={2.2} className={cn(!reduced && 'animate-pulse-soft')} />
+                Active Disruptions · {Object.keys(disruptions).length}
+              </span>
+              {Object.entries(disruptions).slice(0, 4).map(([laneId, reason]) => {
+                const g = laneGeoById.get(laneId)
+                const selected = selectedEntity?.type === 'shipment' && selectedEntity.id === laneId
+                return (
+                  <button
+                    key={laneId}
+                    onClick={() => selectEntity({ type: 'shipment', id: laneId })}
+                    className={cn(
+                      'flex flex-col items-start rounded px-1.5 py-0.5 text-left transition-colors hover:bg-surface-3/70',
+                      selected && 'bg-critical/10',
+                    )}
+                  >
+                    <span className="font-mono text-[10px] leading-tight text-ink-1">
+                      {g ? `${g.from.name} → ${g.to.name}` : laneId}
+                    </span>
+                    <span className="text-[9px] capitalize leading-tight text-critical/90">{reason}</span>
+                  </button>
+                )
+              })}
+              {Object.keys(disruptions).length > 4 && (
+                <span className="px-1.5 text-[9px] text-ink-3">
+                  +{Object.keys(disruptions).length - 4} more
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Warm no-disruption state — emerald ShieldCheck, on-brand (plan Fix F). */}
           {healthy && (
             <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 z-10">
@@ -870,6 +917,21 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
       {drill && (
         <DrillInPanel title={drill.title} subtitle={drill.subtitle}>
           <div className="flex flex-col gap-2">
+            {/* Disruption banner — when the selected lane is under an active
+                disruption, lead with the reason so a click on the red line
+                actually explains what happened. */}
+            {drill.disruptionReason && (
+              <div className="flex items-start gap-2 rounded-md border border-critical/40 bg-critical/10 px-2.5 py-2">
+                <TriangleAlert size={14} strokeWidth={2} className="mt-0.5 shrink-0 text-critical" />
+                <div>
+                  <div className="text-[11px] font-semibold text-critical">Lane disrupted</div>
+                  <div className="text-[10px] capitalize text-ink-2">{drill.disruptionReason}</div>
+                  <div className="mt-0.5 text-[9px] uppercase tracking-[0.12em] text-ink-3">
+                    Shipments on this leg are delayed
+                  </div>
+                </div>
+              </div>
+            )}
             {drill.related.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-8 text-center">
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-3/60 text-success">
