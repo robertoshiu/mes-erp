@@ -194,9 +194,8 @@ export function BayLayout({ equipment, equipState$, lotMove$ }: BayLayoutProps) 
                   width={tileSize + 6}
                   height={tileSize + 6}
                   rx={7}
-                  fill={halo}
                   className="transition-colors duration-200"
-                  style={{ filter: 'blur(4px)' }}
+                  style={{ fill: halo, filter: 'blur(4px)' }}
                   opacity={0.7}
                 />
               )}
@@ -205,10 +204,9 @@ export function BayLayout({ equipment, equipState$, lotMove$ }: BayLayoutProps) 
                 y={tileY}
                 width={tileSize}
                 height={tileSize}
-                fill={color}
                 rx={5}
                 className="transition-colors duration-200"
-                style={{ filter: 'url(#fpTileGlow)' }}
+                style={{ fill: color, filter: 'url(#fpTileGlow)' }}
               />
               {/* Pulsing ring on down tools to draw the eye */}
               {isDown && (
