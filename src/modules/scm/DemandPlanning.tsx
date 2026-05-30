@@ -17,7 +17,7 @@ import { DenseDataTable } from '../../components/DenseDataTable'
 import type { Column } from '../../components/DenseDataTable'
 import { MetricTile } from '../../components/ui/MetricTile'
 import { CHART, ChartDefs, ChartTooltip } from '../../lib/chartTheme'
-import { chartSeries } from '../../lib/tokens'
+import { chartSeries, neutral } from '../../lib/tokens'
 import { cn } from '../../lib/utils'
 import type { ScmModuleProps } from './types'
 
@@ -273,7 +273,7 @@ export function DemandPlanningModule({ scmData, eventBus }: ScmModuleProps) {
                 tick={CHART.tick}
               />
               <Tooltip content={<ChartTooltip unit=" ea" labelFormatter={bucketTooltipLabel} />} />
-              <Legend wrapperStyle={{ fontSize: 10, color: '#74849E' }} />
+              <Legend wrapperStyle={{ fontSize: 10, color: neutral.ink3 }} />
               {spikeBucket >= 0 && (
                 <ReferenceLine
                   yAxisId="qty"

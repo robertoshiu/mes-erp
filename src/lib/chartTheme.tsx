@@ -1,11 +1,11 @@
 // Shared Recharts theming for the dark command-center look:
 // vibrant series, gradient area fills, a glow filter, and a glass tooltip.
-import { chartSeries } from './tokens'
+import { chartSeries, neutral } from './tokens'
 
 export const CHART = {
   grid: 'rgba(255, 255, 255, 0.06)',
   axis: 'rgba(174, 187, 208, 0.18)',
-  tick: { fontSize: 11, fontFamily: 'JetBrains Mono, monospace', fill: '#74849E' },
+  tick: { fontSize: 11, fontFamily: 'JetBrains Mono, monospace', fill: neutral.ink3 },
   series: chartSeries,
 } as const
 

@@ -18,7 +18,7 @@ import type { EventBus } from '../../lib/eventBus'
 import type { KpiTickEvent } from '../../lib/events'
 import { computeKpis } from '../../lib/kpi'
 import { CHART, ChartDefs, ChartTooltip } from '../../lib/chartTheme'
-import { brand, e10Colors, sem, chartSeries } from '../../lib/tokens'
+import { brand, e10Colors, sem, chartSeries, neutral } from '../../lib/tokens'
 
 interface KpiDashboardProps {
   eventBus: EventBus
@@ -221,7 +221,7 @@ export function KpiDashboard({ eventBus, totalEquipment }: KpiDashboardProps) {
                 <YAxis yAxisId="pct" domain={[(dataMin: number) => Math.max(0, Math.floor((dataMin - 6) / 5) * 5), 100]} width={34} stroke={CHART.axis} tick={CHART.tick} />
                 <YAxis yAxisId="tp" orientation="right" stroke={CHART.axis} tick={CHART.tick} width={40} />
                 <Tooltip content={<ChartTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 10, color: '#74849E' }} />
+                <Legend wrapperStyle={{ fontSize: 10, color: neutral.ink3 }} />
                 <Area
                   yAxisId="pct"
                   dataKey="oee"

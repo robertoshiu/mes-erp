@@ -1020,7 +1020,7 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
                       <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-3">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-accent-2 to-accent"
-                          style={{ width: `${pct}%`, boxShadow: '0 0 6px rgba(45,212,191,0.55)' }}
+                          style={{ width: `${pct}%`, boxShadow: '0 0 6px rgba(56,189,248,0.55)' }}
                         />
                       </div>
                       <span className="shrink-0 font-mono text-[9px] tabular-nums text-ink-3">{pct}%</span>

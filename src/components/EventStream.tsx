@@ -68,7 +68,7 @@ function eventMessage(event: AppEvent): string {
 
 const TOPIC_META: Record<AppTopic, { short: string; color: string }> = {
   'lot.move': { short: 'LOT', color: '#38BDF8' },
-  'equip.state': { short: 'EQP', color: '#818CF8' },
+  'equip.state': { short: 'EQP', color: '#60A5FA' },
   'spc.violation': { short: 'SPC', color: '#FBBF24' },
   'alarm.raised': { short: 'ALM', color: '#FB7185' },
   'alarm.ack': { short: 'ACK', color: '#34D399' },
@@ -84,7 +84,7 @@ const TOPIC_META: Record<AppTopic, { short: string; color: string }> = {
   'erp.goods.movement': { short: 'MOV', color: '#34D399' },
   'erp.po.created': { short: 'PO', color: '#FBBF24' },
   'erp.po.received': { short: 'PO', color: '#34D399' },
-  'erp.gl.posting': { short: 'GL', color: '#94A3B8' },
+  'erp.gl.posting': { short: 'GL', color: '#74849E' },
   'erp.invoice.created': { short: 'INV', color: '#38BDF8' },
   'scm.forecast.updated': { short: 'FCST', color: '#818CF8' },
   'scm.shipment.created': { short: 'SHIP', color: '#38BDF8' },

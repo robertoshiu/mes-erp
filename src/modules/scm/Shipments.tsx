@@ -50,7 +50,7 @@ const TONE: Record<ChipTone, { text: string; dot: string; chip: string; glow: st
     text: 'text-accent-2',
     dot: 'bg-accent-2',
     chip: 'border-accent-2/30 bg-accent-2/10',
-    glow: 'rgba(45, 212, 191, 0.6)',
+    glow: 'rgba(56, 189, 248, 0.6)',
   },
   success: {
     text: 'text-success',
@@ -99,7 +99,7 @@ function ShipProgress({ pos, status }: { pos: number; status: ShipmentStatus }) 
       <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-3">
         <div
           className="h-full rounded-full bg-gradient-to-r from-accent-2 to-accent"
-          style={{ width: `${pct}%`, boxShadow: '0 0 6px rgba(45, 212, 191, 0.55)' }}
+          style={{ width: `${pct}%`, boxShadow: '0 0 6px rgba(56, 189, 248, 0.55)' }}
         />
       </div>
       <span className="w-8 shrink-0 text-right font-mono text-[9px] tabular-nums text-ink-3">{pct}%</span>

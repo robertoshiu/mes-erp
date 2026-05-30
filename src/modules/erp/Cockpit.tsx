@@ -100,7 +100,7 @@ const LANES: LaneMeta[] = [
 /** Tailwind text + glow per tone. Glow is a CSS box-shadow color string. */
 const TONE: Record<LaneTone, { text: string; bg: string; glow: string }> = {
   accent: { text: 'text-accent', bg: 'bg-accent', glow: 'rgba(34, 211, 238, 0.6)' },
-  'accent-2': { text: 'text-accent-2', bg: 'bg-accent-2', glow: 'rgba(45, 212, 191, 0.6)' },
+  'accent-2': { text: 'text-accent-2', bg: 'bg-accent-2', glow: 'rgba(56, 189, 248, 0.6)' },
   'accent-3': { text: 'text-accent-3', bg: 'bg-accent-3', glow: 'rgba(129, 140, 248, 0.6)' },
   info: { text: 'text-info', bg: 'bg-info', glow: 'rgba(96, 165, 250, 0.6)' },
   success: { text: 'text-success', bg: 'bg-success', glow: 'rgba(52, 211, 153, 0.6)' },
@@ -200,7 +200,7 @@ function LotProgress({ step, total }: { step: number; total: number }) {
       <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-3">
         <div
           className="h-full rounded-full bg-gradient-to-r from-accent-2 to-accent"
-          style={{ width: `${pct}%`, boxShadow: '0 0 6px rgba(45, 212, 191, 0.55)' }}
+          style={{ width: `${pct}%`, boxShadow: '0 0 6px rgba(56, 189, 248, 0.55)' }}
         />
       </div>
       <span className="shrink-0 font-mono text-[9px] tabular-nums text-ink-3">
