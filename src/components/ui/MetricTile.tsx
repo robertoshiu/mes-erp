@@ -73,7 +73,7 @@ export function MetricTile({
 
       <div className="h-9 mt-2 -mx-1">
         {series.length > 1 && (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={36}>
             <AreaChart data={series} margin={{ top: 2, right: 2, bottom: 0, left: 2 }}>
               <defs>
                 <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">

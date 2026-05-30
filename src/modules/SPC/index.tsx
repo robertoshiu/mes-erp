@@ -195,7 +195,7 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
           }
         />
         <div className="relative flex-1 p-3.5 min-h-0">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minHeight={240}>
             <AreaChart data={points} margin={{ top: 10, right: 24, bottom: 6, left: 4 }}>
               <ChartDefs />
               <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} />
