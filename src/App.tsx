@@ -207,13 +207,20 @@ export default function App() {
 
   // MES badge counts (throttled at 1s). Derived from the event ring buffer each
   // tick rather than accumulated, so a 180s loop replay can't make them drift:
-  // alarms = unacked alarm.raised (pre-acked spine alarms carry ackOperatorId and
-  // don't count); equipmentDown = tools whose latest equip.state left them down.
+  // alarms = unacked alarm.raised (pre-acked spine alarms carry ackOperatorId,
+  // and ids acknowledged via alarm.ack are subtracted); equipmentDown = tools
+  // whose latest equip.state left them down.
   useEffect(() => {
     const throttle = setInterval(() => {
       const buffer = eventBus.getBuffer()
 
-      const alarms = buffer.filter(e => e.topic === 'alarm.raised' && !e.ackOperatorId).length
+      const acked = new Set<string>()
+      for (const e of buffer) {
+        if (e.topic === 'alarm.ack') acked.add(e.alarmId)
+      }
+      const alarms = buffer.filter(
+        e => e.topic === 'alarm.raised' && !e.ackOperatorId && !acked.has(e.alarmId),
+      ).length
 
       const latestState = new Map<string, E10State>()
       for (const e of buffer) {

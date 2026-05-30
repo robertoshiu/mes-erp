@@ -32,6 +32,7 @@ function eventMessage(event: AppEvent): string {
     case 'equip.state': return `${event.toolId}: ${event.fromState} → ${event.toState}`
     case 'spc.violation': return `Rule ${event.ruleNumber}: ${event.controlPoint.value.toFixed(2)} (UCL ${event.controlPoint.ucl.toFixed(2)})`
     case 'alarm.raised': return event.message
+    case 'alarm.ack': return `${event.alarmId} acknowledged by ${event.operatorId}`
     case 'recipe.load': return `${event.toolId} ← ${event.recipeId} ${event.recipeVersion}`
     case 'kpi.tick': return `OEE ${(event.oee * 100).toFixed(1)}% · Yield ${(event.yieldPct * 100).toFixed(1)}%`
     case 'shift.boundary': return `Shift ${event.kind}: ${event.shiftCode}`
@@ -63,6 +64,7 @@ const TOPIC_META: Record<AppTopic, { short: string; color: string }> = {
   'equip.state': { short: 'EQP', color: '#818CF8' },
   'spc.violation': { short: 'SPC', color: '#FBBF24' },
   'alarm.raised': { short: 'ALM', color: '#FB7185' },
+  'alarm.ack': { short: 'ACK', color: '#34D399' },
   'recipe.load': { short: 'RCP', color: '#34D399' },
   'kpi.tick': { short: 'KPI', color: '#22D3EE' },
   'shift.boundary': { short: 'SFT', color: '#74849E' },

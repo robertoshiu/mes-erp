@@ -96,10 +96,18 @@ export function AlarmsModule({ eventBus }: AlarmsModuleProps) {
   const selectedEntity = useUiStore(s => s.selectedEntity)
 
   useEffect(() => {
-    const sub = eventBus.ofTopic('alarm.raised').subscribe(alarm => {
+    const raised = eventBus.ofTopic('alarm.raised').subscribe(alarm => {
       setAlarms(prev => [alarm, ...prev].slice(0, 100))
     })
-    return () => sub.unsubscribe()
+    const acked = eventBus.ofTopic('alarm.ack').subscribe(e => {
+      setAlarms(prev =>
+        prev.map(a => (a.alarmId === e.alarmId ? { ...a, ackOperatorId: e.operatorId } : a)),
+      )
+    })
+    return () => {
+      raised.unsubscribe()
+      acked.unsubscribe()
+    }
   }, [eventBus])
 
   const selectedAlarm = selectedEntity?.type === 'alarm'
@@ -252,6 +260,30 @@ export function AlarmsModule({ eventBus }: AlarmsModuleProps) {
               <DetailRow label="Acknowledged By" value={selectedAlarm.ackOperatorId} mono />
             )}
             <DetailRow label="Time" value={`t=${selectedAlarm.t.toFixed(1)}s`} mono />
+
+            {selectedAlarm.ackOperatorId ? (
+              <div className="flex items-center justify-center gap-1.5 rounded-md border border-success/30 bg-success/10 px-3 py-2.5 text-xs font-medium text-success">
+                <ShieldCheck size={14} strokeWidth={2} />
+                ACK by {selectedAlarm.ackOperatorId}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  eventBus.publish({
+                    topic: 'alarm.ack',
+                    t: selectedAlarm.t,
+                    alarmId: selectedAlarm.alarmId,
+                    operatorId: 'OP-001',
+                    severity: selectedAlarm.severity,
+                  })
+                }
+                className="flex w-full items-center justify-center gap-1.5 rounded-md border border-accent/40 bg-accent/15 px-3 py-2.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/25 hover:border-accent/60 cursor-pointer glow-cyan"
+              >
+                <ShieldCheck size={14} strokeWidth={2} />
+                Acknowledge
+              </button>
+            )}
           </div>
         </DrillInPanel>
       )}

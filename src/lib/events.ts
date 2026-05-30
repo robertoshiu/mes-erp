@@ -46,6 +46,14 @@ export type AlarmRaisedEvent = {
   ackOperatorId?: string
 }
 
+export type AlarmAckEvent = {
+  topic: 'alarm.ack'
+  t: number
+  alarmId: string
+  operatorId: string
+  severity: AlarmRaisedEvent['severity']
+}
+
 export type RecipeLoadEvent = {
   topic: 'recipe.load'
   t: number
@@ -91,6 +99,7 @@ export type MesEvent =
   | EquipStateEvent
   | SpcViolationEvent
   | AlarmRaisedEvent
+  | AlarmAckEvent
   | RecipeLoadEvent
   | KpiTickEvent
   | ShiftBoundaryEvent
