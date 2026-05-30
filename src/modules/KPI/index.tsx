@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, Zap, Clock, Layers, Gauge as GaugeIcon, TrendingUp, LineChart } from 'lucide-react'
+import { Activity, Zap, Clock, Layers, Gauge as GaugeIcon, TrendingUp, TrendingDown, LineChart } from 'lucide-react'
 import {
   ComposedChart,
   Area,
@@ -90,7 +90,7 @@ function HeroGaugeCard({
   delta: ReturnType<typeof computeDelta>
 }) {
   const deltaColor = delta?.good === true ? sem.success : delta?.good === false ? sem.critical : '#74849E'
-  const DeltaIcon = TrendingUp
+  const DeltaIcon = delta?.dir === 'down' ? TrendingDown : TrendingUp
   return (
     <Panel hover className="relative overflow-hidden p-4 flex flex-col">
       <div className="flex items-center gap-2.5">
@@ -104,10 +104,7 @@ function HeroGaugeCard({
             <DeltaIcon
               size={12}
               strokeWidth={2.5}
-              style={{
-                transform: delta.dir === 'down' ? 'scaleY(-1)' : undefined,
-                opacity: delta.dir === 'flat' ? 0.6 : 1,
-              }}
+              style={{ opacity: delta.dir === 'flat' ? 0.6 : 1 }}
             />
             {delta.text}
           </span>
