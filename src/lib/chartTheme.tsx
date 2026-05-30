@@ -58,7 +58,11 @@ export function ChartTooltip({ active, payload, label, unit, labelFormatter }: C
           />
           {p.name && <span className="text-ink-2">{p.name}</span>}
           <span className="ml-auto font-mono text-ink-1 tabular-nums">
-            {typeof p.value === 'number' ? p.value.toFixed(2) : p.value}
+            {typeof p.value === 'number'
+              ? Number.isInteger(p.value)
+                ? p.value.toString()
+                : p.value.toFixed(2)
+              : p.value}
             {unit ?? ''}
           </span>
         </div>
