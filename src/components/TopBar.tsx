@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Radio, Users, Clock as ClockIcon, ChevronRight } from 'lucide-react'
 import type { Clock } from '../lib/clock'
 import { useUiStore } from '../lib/uiStore'
 import { SPINE, type SpineBeat } from '../data/timeline'
+import { cn } from '../lib/utils'
 
 interface TopBarProps {
   clock: Clock
@@ -44,11 +45,18 @@ const SHIFT_COLOR: Record<string, string> = {
 export function TopBar({ clock, operatorCount }: TopBarProps) {
   const [loopT, setLoopT] = useState(0)
   const [loopIndex, setLoopIndex] = useState(0)
+  // True only on the tick where loopT wraps 179→0, so the rail snaps to 0
+  // instead of animating a full-width slide backward.
+  const [wrapped, setWrapped] = useState(false)
+  const prevLoopT = useRef(0)
   const currentShift = useUiStore(s => s.currentShift)
 
   useEffect(() => {
     const id = setInterval(() => {
-      setLoopT(clock.loopT())
+      const t = clock.loopT()
+      setWrapped(t < prevLoopT.current)
+      prevLoopT.current = t
+      setLoopT(t)
       setLoopIndex(clock.loopIndex())
     }, 1000)
     return () => clearInterval(id)
@@ -140,7 +148,7 @@ export function TopBar({ clock, operatorCount }: TopBarProps) {
             />
           ))}
         <div
-          className="h-full transition-all duration-1000 ease-linear"
+          className={cn('h-full ease-linear', !wrapped && 'transition-all duration-1000')}
           style={{
             width: `${progressPct}%`,
             background: 'linear-gradient(90deg, #38BDF8, #22D3EE)',
@@ -150,7 +158,10 @@ export function TopBar({ clock, operatorCount }: TopBarProps) {
         {/* Glowing position marker tracking current progress */}
         {PRESENT && (
           <span
-            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-2 w-2 rounded-full transition-all duration-1000 ease-linear"
+            className={cn(
+              'absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-2 w-2 rounded-full ease-linear',
+              !wrapped && 'transition-all duration-1000',
+            )}
             style={{
               left: `${progressPct}%`,
               background: 'linear-gradient(90deg, #38BDF8, #22D3EE)',

@@ -177,14 +177,14 @@ export function KpiDashboard({ eventBus, totalEquipment }: KpiDashboardProps) {
         <HeroGaugeCard
           title="OEE"
           value={currentKpi ? oeeValue * 100 : 0}
-          valueText={currentKpi ? `${oeeTile.format(oeeValue)}%` : '—'}
+          valueText={currentKpi ? `${oeeTile.format(oeeValue)}%` : 'Priming…'}
           color={brand.primary}
           delta={computeDelta(history, oeeTile.key, true)}
         />
         <HeroGaugeCard
           title="Yield"
           value={currentKpi ? yieldValue * 100 : 0}
-          valueText={currentKpi ? `${yieldTile.format(yieldValue)}%` : '—'}
+          valueText={currentKpi ? `${yieldTile.format(yieldValue)}%` : 'Priming…'}
           color={e10Colors.PROD}
           delta={computeDelta(history, yieldTile.key, true)}
         />

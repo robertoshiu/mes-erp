@@ -204,8 +204,14 @@ export function DemandPlanningModule({ scmData, eventBus }: ScmModuleProps) {
       <div className="h-full p-4">
         <Panel className="h-full flex flex-col">
           <PanelHeader title="Demand Planning" icon={<TrendingUp size={14} strokeWidth={2} />} />
-          <div className="flex-1 flex items-center justify-center text-sm text-ink-3">
-            Forecast warming…
+          <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-center px-6">
+            <div className="w-12 h-12 rounded-full bg-accent-3/10 border border-accent-3/25 flex items-center justify-center mb-3">
+              <TrendingUp size={22} strokeWidth={1.8} className="text-accent-3" />
+            </div>
+            <div className="text-sm font-semibold text-ink-2">No demand plans loaded</div>
+            <div className="text-xs text-ink-3 mt-1 max-w-xs">
+              Forecasts appear once master-data FERT materials are present in the network.
+            </div>
           </div>
         </Panel>
       </div>
