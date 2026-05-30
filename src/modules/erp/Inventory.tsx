@@ -124,6 +124,8 @@ export function InventoryModule({ erpData }: ErpModuleProps) {
       rowKey={r => `${r.materialNo}·${r.storageLoc}`}
       entityType="material"
       headerRight={headerRight}
+      filterKeys={['materialNo', 'description', 'plant', 'storageLoc']}
+      filterPlaceholder="Filter lots..."
       detailTitle={r => r.materialNo}
       detailSubtitle={r => r.description}
       renderDetail={r => {

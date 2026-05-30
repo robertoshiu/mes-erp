@@ -182,6 +182,8 @@ export function MaterialsModule({ erpData, eventBus: _eventBus }: ErpModuleProps
       rowKey={r => r.materialNo}
       entityType="material"
       headerRight={headerRight}
+      filterKeys={['materialNo', 'description', 'type']}
+      filterPlaceholder="Filter materials..."
       renderDetail={renderDetail}
       detailTitle={r => r.materialNo}
       detailSubtitle={r => r.description}
