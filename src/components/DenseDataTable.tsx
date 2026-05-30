@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { ChevronUp, ChevronDown, Inbox } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -63,6 +63,14 @@ export function DenseDataTable<T>({
       setSortDir('asc')
     }
   }, [sortCol])
+
+  // Bring a programmatic selection into view (cross-domain handoff can target an
+  // off-screen row that the virtualizer hasn't rendered yet).
+  useEffect(() => {
+    if (selectedKey == null) return
+    const idx = sortedData.findIndex(r => rowKey(r) === selectedKey)
+    if (idx >= 0) virtualizer.scrollToIndex(idx, { align: 'center' })
+  }, [selectedKey, sortedData, rowKey, virtualizer])
 
   return (
     <div className="flex flex-col h-full panel overflow-hidden">

@@ -415,12 +415,12 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
   const onNodeClick = (n: NetworkNode) =>
     selectEntity({ type: 'networkNode', id: n.id })
   const onLaneClick = (g: LaneGeo) =>
-    selectEntity({ type: 'shipment', id: g.lane.id })
+    selectEntity({ type: 'lane', id: g.lane.id })
 
   const isSelectedNode = (n: NetworkNode) =>
     selectedEntity?.type === 'networkNode' && selectedEntity.id === n.id
   const isSelectedLane = (g: LaneGeo) =>
-    selectedEntity?.type === 'shipment' && selectedEntity.id === g.lane.id
+    selectedEntity?.type === 'lane' && selectedEntity.id === g.lane.id
 
   /* — Drill-in content for the selected node / lane — */
   const drill = useMemo(() => {
@@ -431,7 +431,7 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
       const related = shipments.filter(s => s.fromNode === node.id || s.toNode === node.id)
       return { title: node.name, subtitle: `${NODE_KIND_LABEL[node.kind]} · ${node.region}`, related }
     }
-    if (selectedEntity.type === 'shipment') {
+    if (selectedEntity.type === 'lane') {
       const g = laneGeoById.get(selectedEntity.id)
       if (!g) return null
       const related = shipments.filter(s => s.laneId === g.lane.id)
@@ -620,7 +620,7 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
                       })
                     }}
                     onMouseLeave={() => setTip(null)}
-                    onClick={() => selectEntity({ type: 'shipment', id: sh.laneId })}
+                    onClick={() => selectEntity({ type: 'shipment', id: sh.shipmentNo })}
                   >
                     {/* Faint dashed wake (rotated to the lane tangent each frame). */}
                     <line
@@ -805,11 +805,11 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
               </span>
               {Object.entries(disruptions).slice(0, 4).map(([laneId, reason]) => {
                 const g = laneGeoById.get(laneId)
-                const selected = selectedEntity?.type === 'shipment' && selectedEntity.id === laneId
+                const selected = selectedEntity?.type === 'lane' && selectedEntity.id === laneId
                 return (
                   <button
                     key={laneId}
-                    onClick={() => selectEntity({ type: 'shipment', id: laneId })}
+                    onClick={() => selectEntity({ type: 'lane', id: laneId })}
                     className={cn(
                       'flex flex-col items-start rounded px-1.5 py-0.5 text-left transition-colors hover:bg-surface-3/70',
                       selected && 'bg-critical/10',

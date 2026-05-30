@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   Network,
   ShieldCheck,
@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
 import { cn } from '../../lib/utils'
+import { useUiStore } from '../../lib/uiStore'
 import type { ErpModuleProps } from './types'
 import type {
   InventoryRow,
@@ -148,7 +149,9 @@ const PROD_STATUS_TONE: Record<ProductionOrder['status'], { dot: string; text: s
 }
 
 export function MrpModule({ erpData, eventBus: _eventBus }: ErpModuleProps) {
-  const [selectedNo, setSelectedNo] = useState<string | null>(null)
+  const selectEntity = useUiStore(s => s.selectEntity)
+  const selectedEntity = useUiStore(s => s.selectedEntity)
+  const selectedNo = selectedEntity?.type === 'material' ? selectedEntity.id : null
 
   const coverage = useMemo(
     () => buildCoverage(erpData.inventory, erpData.materials),
@@ -253,7 +256,7 @@ export function MrpModule({ erpData, eventBus: _eventBus }: ErpModuleProps) {
                   return (
                     <button
                       key={row.materialNo}
-                      onClick={() => setSelectedNo(row.materialNo)}
+                      onClick={() => selectEntity({ type: 'material', id: row.materialNo })}
                       className={cn(
                         'group relative flex w-full items-center text-xs border-b border-white/[0.04] text-left transition-colors',
                         idx % 2 === 1 && !isSel && 'bg-white/[0.015]',
@@ -356,7 +359,7 @@ export function MrpModule({ erpData, eventBus: _eventBus }: ErpModuleProps) {
               </div>
             </div>
             <button
-              onClick={() => setSelectedNo(null)}
+              onClick={() => selectEntity(null)}
               className="w-7 h-7 flex items-center justify-center rounded-md text-ink-3 hover:text-ink-1 hover:bg-surface-3 cursor-pointer transition-colors"
               aria-label="Close panel"
             >

@@ -33,7 +33,7 @@ export interface SelectedEntity {
     | 'material' | 'businessPartner' | 'salesOrder' | 'plannedOrder'
     | 'prodOrder' | 'purchaseOrder' | 'costCenter' | 'glAccount'
     // SCM
-    | 'shipment' | 'networkNode' | 'supplierScorecard'
+    | 'shipment' | 'lane' | 'networkNode' | 'supplierScorecard'
   id: string
 }
 
