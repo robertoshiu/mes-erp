@@ -177,6 +177,7 @@ export function MrpModule({ erpData, eventBus: _eventBus }: ErpModuleProps) {
   // Column geometry: keep the matrix dense and aligned.
   const colMaterial = 320
   const colNum = 86
+  const colAvail = 86
   const bucketCol = 78
 
   return (
@@ -225,6 +226,13 @@ export function MrpModule({ erpData, eventBus: _eventBus }: ErpModuleProps) {
                   style={{ width: colNum }}
                 >
                   On-Hand
+                </div>
+                <div
+                  className="px-2.5 py-2.5 shrink-0 text-right"
+                  style={{ width: colAvail }}
+                  title="Available to promise = on-hand less committed"
+                >
+                  Avail
                 </div>
                 {BUCKETS.map(b => (
                   <div
@@ -281,6 +289,20 @@ export function MrpModule({ erpData, eventBus: _eventBus }: ErpModuleProps) {
                         style={{ width: colNum }}
                       >
                         {fmt(row.onHand)}
+                      </div>
+                      {/* Available (ATP) — color-gated against committed demand */}
+                      <div
+                        className={cn(
+                          'px-2.5 shrink-0 text-right font-mono tabular-nums self-stretch flex items-center justify-end',
+                          row.available <= 0
+                            ? 'bg-critical/15 text-critical font-semibold'
+                            : row.available < row.committed
+                              ? 'bg-warn/10 text-warn'
+                              : 'text-success',
+                        )}
+                        style={{ width: colAvail }}
+                      >
+                        {fmt(row.available)}
                       </div>
                       {/* Buckets */}
                       {row.projected.map((p, i) => {
