@@ -32,6 +32,25 @@ export function ChartDefs() {
   )
 }
 
+/** Mount once at the app root (outside any chart) so #fpTileGlow always exists in
+ *  the document — BayLayout/ControlTower are bespoke SVGs that reference it on
+ *  routes where no Recharts chart (and thus no ChartDefs) is mounted. */
+export function GlobalSvgDefs() {
+  return (
+    <svg width="0" height="0" aria-hidden focusable="false" style={{ position: 'absolute' }}>
+      <defs>
+        <filter id="fpTileGlow" x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="3.2" result="b" />
+          <feMerge>
+            <feMergeNode in="b" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+    </svg>
+  )
+}
+
 interface ChartTooltipProps {
   active?: boolean
   payload?: Array<{ name?: string; value?: number | string; color?: string }>

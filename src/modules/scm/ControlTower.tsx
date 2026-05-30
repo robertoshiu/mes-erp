@@ -512,14 +512,6 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
         <div ref={wrapRef} className="relative h-full w-full">
           <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="w-full h-full">
             <defs>
-              {/* Soft neon bloom (shared with the FabFloor comet vocabulary). */}
-              <filter id="ctTileGlow" x="-80%" y="-80%" width="260%" height="260%">
-                <feGaussianBlur stdDeviation="3.2" result="b" />
-                <feMerge>
-                  <feMergeNode in="b" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
               {/* Faint grid backdrop wash (plan Fix 10 depth). */}
               <pattern id="ctFloorGrid" width="40" height="40" patternUnits="userSpaceOnUse">
                 <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(56,189,248,0.05)" strokeWidth="1" />
@@ -582,7 +574,7 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
                         {!reduced && (
                           <circle r={9} fill="none" stroke={SEM_CRITICAL} strokeWidth={1.4} className="animate-sonar" />
                         )}
-                        <circle r={4} fill={SEM_CRITICAL} style={{ filter: 'url(#ctTileGlow)' }} />
+                        <circle r={4} fill={SEM_CRITICAL} style={{ filter: 'url(#fpTileGlow)' }} />
                       </g>
                     )}
                   </g>
@@ -650,7 +642,7 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
                       fill={DOT_CORE}
                       stroke="#16223A"
                       strokeWidth={0.75}
-                      style={{ filter: `url(#ctTileGlow) drop-shadow(0 0 6px ${tint})` }}
+                      style={{ filter: `url(#fpTileGlow) drop-shadow(0 0 6px ${tint})` }}
                     />
                     <title>
                       {sh.shipmentNo} · {sh.direction} · {sh.materialNo} ×{sh.qty}
@@ -740,8 +732,8 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
                       strokeWidth={isFab ? 2.4 : 1.6}
                       style={{
                         filter: isFab
-                          ? 'url(#ctTileGlow) drop-shadow(0 0 10px rgba(34,211,238,0.7))'
-                          : 'url(#ctTileGlow)',
+                          ? 'url(#fpTileGlow) drop-shadow(0 0 10px rgba(34,211,238,0.7))'
+                          : 'url(#fpTileGlow)',
                       }}
                     />
                     {/* FAB-01 anchor: inner accent core. */}

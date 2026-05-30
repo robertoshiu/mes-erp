@@ -103,14 +103,6 @@ export function BayLayout({ equipment, equipState$, lotMove$ }: BayLayoutProps) 
     <div className="relative w-full h-full">
       <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full">
         <defs>
-          {/* Soft neon bloom for equipment tiles */}
-          <filter id="fpTileGlow" x="-80%" y="-80%" width="260%" height="260%">
-            <feGaussianBlur stdDeviation="3.2" result="b" />
-            <feMerge>
-              <feMergeNode in="b" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
           {/* Faint grid backdrop */}
           <pattern id="fpFloorGrid" width="40" height="40" patternUnits="userSpaceOnUse">
             <path

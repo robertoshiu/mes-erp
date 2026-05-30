@@ -334,12 +334,6 @@
   0%   { transform: translateX(-120%); }
   100% { transform: translateX(220%); }
 }
-@keyframes fp-flow {
-  0%   { offset-distance: 0%; opacity: 0; }
-  10%  { opacity: 1; }
-  90%  { opacity: 1; }
-  100% { offset-distance: 100%; opacity: 0; }
-}
 
 .animate-pulse-glow { animation: fp-pulse-glow 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 .animate-pulse-soft { animation: fp-pulse-soft 1.8s ease-in-out infinite; }

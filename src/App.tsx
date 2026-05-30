@@ -6,6 +6,7 @@ import {
   ChevronDown, ChevronRight,
 } from 'lucide-react'
 import { useUiStore, type ModuleRoute, type BadgeCounts } from './lib/uiStore'
+import { GlobalSvgDefs } from './lib/chartTheme'
 import type { E10State } from './lib/events'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { TopBar } from './components/TopBar'
@@ -311,6 +312,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen text-ink-1 font-sans overflow-hidden">
+      <GlobalSvgDefs />
       {/* Sidebar */}
       <nav
         className="w-56 shrink-0 flex flex-col bg-surface border-r border-edge relative"
