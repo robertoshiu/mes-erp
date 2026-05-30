@@ -30,7 +30,16 @@ export function Gauge({
   const cy = size / 2
 
   return (
-    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+    <div
+      className="relative inline-flex items-center justify-center"
+      style={{ width: size, height: size }}
+      role="meter"
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      aria-valuetext={`${Math.round(value)} of ${max}`}
+      aria-label={label}
+    >
       <svg width={size} height={size} className="-rotate-90" aria-hidden>
         <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={stroke} />
         <circle
