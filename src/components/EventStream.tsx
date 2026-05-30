@@ -156,6 +156,8 @@ export function EventStream({ events$, maxVisible = 50, seed }: EventStreamProps
   return (
     <div
       ref={scrollRef}
+      role="log"
+      aria-live="polite"
       className="h-full overflow-y-auto text-xs"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}

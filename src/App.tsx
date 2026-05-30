@@ -346,7 +346,7 @@ export default function App() {
                     <button
                       onClick={() => toggleGroup(gkey)}
                       aria-expanded={!isCollapsed}
-                      className="group/g w-full flex items-center gap-1 px-4 py-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-mute hover:text-ink-3 hover:bg-surface-3/40 cursor-pointer transition-colors"
+                      className="group/g w-full flex items-center gap-1 px-4 py-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-mute hover:text-ink-3 hover:bg-surface-3/40 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     >
                       {isCollapsed
                         ? <ChevronRight size={11} className="shrink-0" />
@@ -362,7 +362,7 @@ export default function App() {
                           key={route}
                           onClick={() => setRoute(route)}
                           aria-current={isActive ? 'page' : undefined}
-                          className={`group relative w-full flex items-center gap-2.5 pl-5 pr-3 py-2 text-sm text-left cursor-pointer transition-all duration-200
+                          className={`group relative w-full flex items-center gap-2.5 pl-5 pr-3 py-2 text-sm text-left cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent
                             ${isActive
                               ? 'text-accent font-semibold'
                               : 'text-ink-2 hover:text-ink-1 hover:bg-surface-3/60'

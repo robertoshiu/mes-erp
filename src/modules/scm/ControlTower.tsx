@@ -549,7 +549,16 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
                       stroke="transparent"
                       strokeWidth={14}
                       className="cursor-pointer"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`${g.from.name} → ${g.to.name}`}
                       onClick={() => onLaneClick(g)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          onLaneClick(g)
+                        }
+                      }}
                     >
                       <title>
                         {g.from.name} → {g.to.name} · {g.lane.mode} · {g.lane.transitDays}d
@@ -602,6 +611,15 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
                     }}
                     transform={`translate(${p0.x.toFixed(2)} ${p0.y.toFixed(2)})`}
                     className={cn('cursor-pointer', !reduced && 'animate-rise')}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={sh.shipmentNo}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        selectEntity({ type: 'shipment', id: sh.shipmentNo })
+                      }
+                    }}
                     onMouseEnter={() => {
                       const wrap = wrapRef.current
                       const g = dotRefs.current.get(sh.shipmentNo)
@@ -682,7 +700,16 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
                   <g
                     key={n.id}
                     className="cursor-pointer"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={n.name}
                     onClick={() => onNodeClick(n)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        onNodeClick(n)
+                      }
+                    }}
                   >
                     {/* Bloom halo */}
                     <circle cx={n.x} cy={n.y} r={r + 6} fill={glow} style={{ filter: 'blur(6px)' }} opacity={0.7} />
@@ -812,7 +839,7 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
                     key={laneId}
                     onClick={() => selectEntity({ type: 'lane', id: laneId })}
                     className={cn(
-                      'flex flex-col items-start rounded px-1.5 py-0.5 text-left transition-colors hover:bg-surface-3/70',
+                      'flex flex-col items-start rounded px-1.5 py-0.5 text-left transition-colors hover:bg-surface-3/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
                       selected && 'bg-critical/10',
                     )}
                   >

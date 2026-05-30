@@ -99,14 +99,24 @@ export function DenseDataTable<T>({
               return (
                 <div
                   key={col.key}
+                  role={col.sortFn ? 'columnheader' : undefined}
+                  tabIndex={col.sortFn ? 0 : undefined}
+                  aria-sort={col.sortFn ? (sorted ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none') : undefined}
                   className={cn(
                     'px-2.5 py-2.5 flex items-center gap-1 select-none transition-colors',
                     col.flex ? 'flex-1 min-w-0' : 'shrink-0',
-                    col.sortFn && 'cursor-pointer hover:text-accent hover:bg-surface-3',
+                    col.sortFn && 'cursor-pointer hover:text-accent hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
                     sorted && 'text-accent',
                   )}
                   style={col.flex ? { minWidth: col.width } : { width: col.width }}
                   onClick={() => col.sortFn && handleSort(col.key)}
+                  onKeyDown={e => {
+                    if (!col.sortFn) return
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      handleSort(col.key)
+                    }
+                  }}
                 >
                   <span className="truncate">{col.header}</span>
                   {sorted && (sortDir === 'asc'

@@ -183,7 +183,7 @@ export function AlarmsModule({ eventBus }: AlarmsModuleProps) {
                   onClick={() => selectEntity({ type: 'alarm', id: alarm.alarmId })}
                   className={cn(
                     'group relative flex w-full items-center gap-3 border-b border-white/5 px-3.5 py-2.5 text-left',
-                    'cursor-pointer transition-colors duration-150',
+                    'cursor-pointer transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
                     'before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:content-[""]',
                     s.rail,
                     selected ? 'bg-accent/10' : 'hover:bg-surface-3/60',
