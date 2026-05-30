@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { ChevronUp, ChevronDown } from 'lucide-react'
+import { ChevronUp, ChevronDown, Inbox } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface Column<T> {
@@ -22,6 +22,8 @@ interface DenseDataTableProps<T> {
   /** Extra per-row classes (e.g. priority flash for hot lots). */
   rowClassName?: (row: T) => string | undefined
   rowHeight?: number
+  /** Message shown when there are no rows. */
+  emptyMessage?: string
 }
 
 export function DenseDataTable<T>({
@@ -32,6 +34,7 @@ export function DenseDataTable<T>({
   selectedKey,
   rowClassName,
   rowHeight = 34,
+  emptyMessage = 'No data available',
 }: DenseDataTableProps<T>) {
   const [sortCol, setSortCol] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
@@ -88,7 +91,13 @@ export function DenseDataTable<T>({
       </div>
 
       {/* Virtualized rows */}
-      <div ref={parentRef} className="flex-1 overflow-auto">
+      <div ref={parentRef} className="flex-1 overflow-auto relative">
+        {sortedData.length === 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-ink-mute pointer-events-none">
+            <Inbox size={28} strokeWidth={1.5} className="text-ink-3" />
+            <span className="text-xs font-medium tracking-wide">{emptyMessage}</span>
+          </div>
+        )}
         <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
           {virtualizer.getVirtualItems().map(vRow => {
             const row = sortedData[vRow.index]
