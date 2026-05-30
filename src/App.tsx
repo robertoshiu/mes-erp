@@ -119,6 +119,11 @@ const DOMAINS: NavDomain[] = [
   },
 ]
 
+// Flat route→label lookup for friendly module names (e.g. ErrorBoundary fallback copy).
+const ROUTE_LABELS: Record<string, string> = Object.fromEntries(
+  DOMAINS.flatMap(d => d.groups.flatMap(g => g.items.map(i => [i.route, i.label]))),
+)
+
 // Badge color by semantic: alarms/shortages = critical pulse, late/down = warn, counts = accent.
 function badgeClass(key: keyof BadgeCounts): { cls: string; pulse: boolean } {
   if (key === 'alarms' || key === 'shortages' || key === 'disruptions') return { cls: 'bg-critical text-white', pulse: true }
@@ -147,6 +152,7 @@ export default function App() {
   const scmDriver = useMemo(() => createShipmentDriver(clock, eventBus, masterData, erpData, scmData), [clock, eventBus, masterData, erpData, scmData])
 
   const activeRoute = useUiStore(s => s.activeRoute)
+  const activeLabel = ROUTE_LABELS[activeRoute] ?? activeRoute
   const setRoute = useUiStore(s => s.setRoute)
   const badges = useUiStore(s => s.badges)
 
@@ -410,7 +416,7 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar clock={clock} operatorCount={operatorCount} />
         <main className="flex-1 overflow-hidden">
-          <ErrorBoundary key={activeRoute} moduleName={activeRoute}>
+          <ErrorBoundary key={activeRoute} moduleName={activeLabel}>
             <Suspense fallback={<ModuleSkeleton />}>
               {renderModule()}
             </Suspense>
