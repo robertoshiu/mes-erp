@@ -12,6 +12,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { TopBar } from './components/TopBar'
 import { generateMasterData } from './data/master'
 import { generateErpData } from './data/erp'
+import { countShortages } from './data/erp/coverage'
 import { generateScmData } from './data/scm'
 import { createClock } from './lib/clock'
 import { createEventBus } from './lib/eventBus'
@@ -206,7 +207,7 @@ export default function App() {
 
   // Static ERP badge counts (derived from the seeded ERP dataset).
   useEffect(() => {
-    const shortages = erpData.inventory.filter(r => r.available <= 0).length
+    const shortages = countShortages(erpData.inventory, erpData.materials)
     const openOrders = erpData.salesOrders.filter(o => o.status === 'open' || o.status === 'in-process').length
     const latePOs = erpData.purchaseOrders.filter(p => p.status === 'late').length
     useUiStore.getState().updateBadges({ shortages, openOrders, latePOs })
