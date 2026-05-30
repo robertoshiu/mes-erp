@@ -155,18 +155,30 @@ function RefDocLink({ id, onClick }: { id: string; onClick: () => void }) {
   )
 }
 
-/* ── Live loop time ─────────────────────────────────────────────────────────
- * The Control Tower owns the rAF dot animation; this table only needs a 1s-cadence
- * live position for the progress bar / ETA / late flag, so it polls like TopBar.
- * The shared clock is not in ScmModuleProps, so loopT is reconstructed from the
- * same performance.now() timeline the clock runs on (loop-relative seconds). */
-function useLoopT(): number {
-  const [t, setT] = useState(() => (performance.now() / 1000) % LOOP_DURATION_S)
-  useEffect(() => {
-    const id = setInterval(() => setT((performance.now() / 1000) % LOOP_DURATION_S), 1000)
-    return () => clearInterval(id)
-  }, [])
-  return t
+/* ── Local loop-clock slaved to the bus ─────────────────────────────────────
+ * The module is handed only scmData + eventBus (no clock instance). Every event
+ * carries `t` (loop seconds from the shared clock), so on each event we record
+ * (wallBase, tBase) and read loopT() as the wall-clock delta since the last sync
+ * added to tBase, modulo the loop. This is the SAME phase the shipment-driver
+ * stamps departureT with, so progress/ETA/late match the Control Tower dots
+ * (ported from ControlTower.createLocalLoopClock — a raw performance.now() was
+ * the desync bug). */
+function createLocalLoopClock() {
+  let wallBase = performance.now() / 1000
+  let tBase = 0
+  let synced = false
+  return {
+    sync(t: number) {
+      wallBase = performance.now() / 1000
+      tBase = t
+      synced = true
+    },
+    loopT(): number {
+      if (!synced) return 0
+      const elapsed = performance.now() / 1000 - wallBase
+      return (tBase + elapsed) % LOOP_DURATION_S
+    },
+  }
 }
 
 /* ── Disruption-affected lanes (row-superhot) ────────────────────────────────
@@ -258,7 +270,11 @@ export function ShipmentsModule({ scmData, eventBus }: ScmModuleProps) {
   const { networkNodes, lanes } = scmData
   const shipments = useShipments(s => s.shipments)
   const navigateTo = useUiStore(s => s.navigateTo)
-  const loopT = useLoopT()
+
+  // Bus-slaved loop clock + 1s tick (table is not rAF). Synced on every event so
+  // the position fed to shipmentPosition() matches the driver's departureT phase.
+  const localClock = useMemo(() => createLocalLoopClock(), [])
+  const [loopT, setLoopT] = useState(0)
 
   const [disruptedLanes, dispatchDisruption] = useReducer(disruptionReducer, undefined, () => new Set<string>())
 
@@ -278,6 +294,7 @@ export function ShipmentsModule({ scmData, eventBus }: ScmModuleProps) {
 
   useEffect(() => {
     const subs = [
+      eventBus.all$().subscribe(e => localClock.sync(e.t)),
       eventBus.ofTopic('scm.disruption.raised').subscribe(e =>
         dispatchDisruption({ kind: 'raise', laneId: e.laneId }),
       ),
@@ -285,10 +302,12 @@ export function ShipmentsModule({ scmData, eventBus }: ScmModuleProps) {
         dispatchDisruption({ kind: 'clear', laneId: e.laneId }),
       ),
     ]
+    const id = setInterval(() => setLoopT(localClock.loopT()), 1000)
     return () => {
       for (const s of subs) s.unsubscribe()
+      clearInterval(id)
     }
-  }, [eventBus])
+  }, [eventBus, localClock])
 
   // Live per-shipment position (computed, ARCH-1) — keyed by shipmentNo so the
   // columns + drill-in + rowClassName all read one consistent value per render.
