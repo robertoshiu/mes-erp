@@ -23,6 +23,14 @@ import { createScmTimelineEngine } from './data/scm/scm-timeline-engine'
 import { createShipmentDriver } from './data/scm/shipment-driver'
 import { useShipments } from './lib/useShipments'
 import { shipmentPosition } from './data/scm/shipmentPosition'
+import {
+  NETWORK_VIEW_W,
+  NETWORK_VIEW_H,
+  SUPPLIER_SLOTS,
+  DC_SLOTS,
+  CUSTOMER_SLOTS,
+  FAB_SLOT,
+} from './data/scm/networkNodes'
 
 // Route-level code-split: each module is its own chunk (recharts/framer load lazily).
 const FabFloor = lazy(() => import('./modules/FabFloor').then(m => ({ default: m.FabFloor })))
@@ -135,8 +143,108 @@ function badgeClass(key: keyof BadgeCounts): { cls: string; pulse: boolean } {
 function ModuleSkeleton() {
   return (
     <div className="h-full p-4">
-      <div className="panel h-full w-full animate-pulse-soft" />
+      <div className="relative panel h-full w-full animate-pulse-soft">
+        <span className="absolute inset-0 flex items-center justify-center font-mono text-[11px] uppercase tracking-[0.2em] text-ink-mute">
+          Loading module…
+        </span>
+      </div>
     </div>
+  )
+}
+
+// Per-tier ghost radii mirror ControlTower's NODE_R so the FAB reads as the
+// larger center anchor; the skeleton is a static placeholder (no live data).
+const GHOST_NODE_R = { supplier: 13, fab: 24, dc: 16, customer: 14 }
+
+// Quadratic ghost-lane path, same shape family as ControlTower's laneGeometry
+// (perpendicular bow = dist*0.16) so the scaffolding tracks the live map.
+function ghostLanePath(sx: number, sy: number, ex: number, ey: number): string {
+  const dx = ex - sx
+  const dy = ey - sy
+  const dist = Math.hypot(dx, dy) || 1
+  const bow = dist * 0.16 * (sy <= ey ? 1 : -1)
+  const nx = -dy / dist
+  const ny = dx / dist
+  const cx = (sx + ex) / 2 + nx * bow
+  const cy = (sy + ey) / 2 + ny * bow
+  return `M ${sx} ${sy} Q ${cx} ${cy} ${ex} ${ey}`
+}
+
+// Map-shaped Suspense fallback for the flagship Control Tower hero. Reuses the
+// live hero chrome + baked slot coords so the chunk swap causes no layout jump.
+function ControlTowerSkeleton() {
+  const lanes: string[] = []
+  for (const s of SUPPLIER_SLOTS) lanes.push(ghostLanePath(s.x, s.y, FAB_SLOT.x, FAB_SLOT.y))
+  for (const d of DC_SLOTS) lanes.push(ghostLanePath(FAB_SLOT.x, FAB_SLOT.y, d.x, d.y))
+  for (const d of DC_SLOTS) {
+    for (const c of CUSTOMER_SLOTS) lanes.push(ghostLanePath(d.x, d.y, c.x, c.y))
+  }
+  return (
+    <section className="h-full flex flex-col gap-2.5 p-3 min-h-0">
+      <div className="panel hud-frame relative flex-1 min-h-0 overflow-hidden">
+        <div className="relative h-full w-full">
+          <svg viewBox={`0 0 ${NETWORK_VIEW_W} ${NETWORK_VIEW_H}`} className="w-full h-full">
+            <g className="animate-pulse-soft">
+              {lanes.map((d, i) => (
+                <path
+                  key={`ghost-lane-${i}`}
+                  d={d}
+                  fill="none"
+                  stroke="var(--edge)"
+                  strokeWidth={1.2}
+                  strokeOpacity={0.7}
+                />
+              ))}
+              {SUPPLIER_SLOTS.map((s, i) => (
+                <circle
+                  key={`ghost-supplier-${i}`}
+                  cx={s.x}
+                  cy={s.y}
+                  r={GHOST_NODE_R.supplier}
+                  fill="var(--ink-mute)"
+                  fillOpacity={0.18}
+                  stroke="var(--edge)"
+                  strokeWidth={1}
+                />
+              ))}
+              {DC_SLOTS.map((d, i) => (
+                <circle
+                  key={`ghost-dc-${i}`}
+                  cx={d.x}
+                  cy={d.y}
+                  r={GHOST_NODE_R.dc}
+                  fill="var(--ink-mute)"
+                  fillOpacity={0.18}
+                  stroke="var(--edge)"
+                  strokeWidth={1}
+                />
+              ))}
+              {CUSTOMER_SLOTS.map((c, i) => (
+                <circle
+                  key={`ghost-customer-${i}`}
+                  cx={c.x}
+                  cy={c.y}
+                  r={GHOST_NODE_R.customer}
+                  fill="var(--ink-mute)"
+                  fillOpacity={0.18}
+                  stroke="var(--edge)"
+                  strokeWidth={1}
+                />
+              ))}
+              <circle
+                cx={FAB_SLOT.x}
+                cy={FAB_SLOT.y}
+                r={GHOST_NODE_R.fab}
+                fill="var(--ink-mute)"
+                fillOpacity={0.22}
+                stroke="var(--edge)"
+                strokeWidth={1.4}
+              />
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -418,7 +526,7 @@ export default function App() {
         <TopBar clock={clock} operatorCount={operatorCount} />
         <main className="flex-1 overflow-hidden">
           <ErrorBoundary key={activeRoute} moduleName={activeLabel}>
-            <Suspense fallback={<ModuleSkeleton />}>
+            <Suspense fallback={activeRoute === 'control-tower' ? <ControlTowerSkeleton /> : <ModuleSkeleton />}>
               {renderModule()}
             </Suspense>
           </ErrorBoundary>

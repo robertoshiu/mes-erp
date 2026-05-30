@@ -14,7 +14,7 @@ const VIEW_H = 560
 // 2-3 DCs (mid-right hubs), <=4 customer regions (right column). Excess vendors
 // aggregate into an 'Others' supplier node; excess customers into an 'Others
 // region' node. All slots below sit on the safe inset.
-const SUPPLIER_SLOTS: { x: number; y: number }[] = [
+export const SUPPLIER_SLOTS: { x: number; y: number }[] = [
   { x: 90, y: 70 },
   { x: 60, y: 175 },
   { x: 60, y: 285 },
@@ -22,20 +22,20 @@ const SUPPLIER_SLOTS: { x: number; y: number }[] = [
   { x: 90, y: 500 },
 ]
 
-const DC_SLOTS: { x: number; y: number }[] = [
+export const DC_SLOTS: { x: number; y: number }[] = [
   { x: 690, y: 150 },
   { x: 690, y: 410 },
   { x: 730, y: 285 },
 ]
 
-const CUSTOMER_SLOTS: { x: number; y: number }[] = [
+export const CUSTOMER_SLOTS: { x: number; y: number }[] = [
   { x: 935, y: 80 },
   { x: 940, y: 215 },
   { x: 940, y: 350 },
   { x: 935, y: 485 },
 ]
 
-const FAB_SLOT = { x: 390, y: 285 }
+export const FAB_SLOT = { x: 390, y: 285 }
 
 const MAX_SUPPLIERS = 5
 const MAX_CUSTOMERS = 4
