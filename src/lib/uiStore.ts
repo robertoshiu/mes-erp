@@ -54,6 +54,7 @@ export interface BadgeCounts {
 interface UiState {
   activeRoute: ModuleRoute
   setRoute: (route: ModuleRoute) => void
+  navigateTo: (route: ModuleRoute, entity: SelectedEntity) => void
 
   selectedEntity: SelectedEntity | null
   selectEntity: (entity: SelectedEntity | null) => void
@@ -68,6 +69,7 @@ interface UiState {
 export const useUiStore = create<UiState>((set) => ({
   activeRoute: 'fab-floor',
   setRoute: (route) => set({ activeRoute: route, selectedEntity: null }),
+  navigateTo: (route, entity) => set({ activeRoute: route, selectedEntity: entity }),
 
   selectedEntity: null,
   selectEntity: (entity) => set({ selectedEntity: entity }),
