@@ -323,20 +323,31 @@ export default function App() {
 
   // MES badge counts (throttled at 1s). Derived from the event ring buffer each
   // tick rather than accumulated, so a 180s loop replay can't make them drift:
-  // alarms = unacked alarm.raised (pre-acked spine alarms carry ackOperatorId,
-  // and ids acknowledged via alarm.ack are subtracted); equipmentDown = tools
-  // whose latest equip.state left them down.
+  // alarms = distinct unacked alarmIds; equipmentDown = tools whose latest
+  // equip.state left them down.
   useEffect(() => {
     const throttle = setInterval(() => {
       const buffer = eventBus.getBuffer()
 
-      const acked = new Set<string>()
+      // Per-id alarm fold (oldest→newest): the scripted spine re-emits the SAME
+      // alarmId every 180s loop, so the ring holds multiple copies of one alarm.
+      // Counting events would climb across loops; instead fold to a latest-state
+      // map (alarmId → unacked?) so each id contributes at most once. A later
+      // alarm.raised reactivates an id; an alarm.ack clears only that current
+      // instance (a subsequent same-id raise re-activates it).
+      const alarmUnacked = new Map<string, boolean>()
       for (const e of buffer) {
-        if (e.topic === 'alarm.ack') acked.add(e.alarmId)
+        if (e.topic === 'alarm.raised') {
+          // pre-acked spine alarms carry ackOperatorId → already acknowledged.
+          alarmUnacked.set(e.alarmId, !e.ackOperatorId)
+        } else if (e.topic === 'alarm.ack') {
+          alarmUnacked.set(e.alarmId, false)
+        }
       }
-      const alarms = buffer.filter(
-        e => e.topic === 'alarm.raised' && !e.ackOperatorId && !acked.has(e.alarmId),
-      ).length
+      let alarms = 0
+      for (const unacked of alarmUnacked.values()) {
+        if (unacked) alarms++
+      }
 
       const latestState = new Map<string, E10State>()
       for (const e of buffer) {
@@ -355,13 +366,13 @@ export default function App() {
   }, [eventBus, masterData])
 
   // SCM badge counts (throttled at 1s, mirroring the MES badge effect): inTransit
-  // + lateShipments read live from useShipments; disruptions track raised/cleared.
+  // + lateShipments read live from useShipments; disruptions recomputed from the
+  // ring buffer each tick rather than a closure counter. Fold raised/cleared by
+  // laneId (latest-wins, same fold ControlTower seeds its panel from): an open
+  // disruption sets its laneId, a cleared removes it. This always equals the
+  // Control Tower's active-disruptions list, self-heals after the loop wrap, and
+  // also counts disruptions raised before this effect mounted.
   useEffect(() => {
-    let disruptionCount = 0
-    const sub = eventBus.all$().subscribe(e => {
-      if (e.topic === 'scm.disruption.raised') disruptionCount++
-      if (e.topic === 'scm.disruption.cleared') disruptionCount = Math.max(0, disruptionCount - 1)
-    })
     const throttle = setInterval(() => {
       const t = clock.loopT()
       const shipments = useShipments.getState().shipments
@@ -373,9 +384,16 @@ export default function App() {
         // "Late" = past its ETA but the arrival transition hasn't fired yet.
         if (shipmentPosition(t, s.departureT, s.transitSeconds) >= 1) lateShipments++
       }
-      useUiStore.getState().updateBadges({ inTransit, lateShipments, disruptions: disruptionCount })
+
+      const openLanes = new Set<string>()
+      for (const e of eventBus.getBuffer()) {
+        if (e.topic === 'scm.disruption.raised') openLanes.add(e.laneId)
+        else if (e.topic === 'scm.disruption.cleared') openLanes.delete(e.laneId)
+      }
+
+      useUiStore.getState().updateBadges({ inTransit, lateShipments, disruptions: openLanes.size })
     }, 1000)
-    return () => { sub.unsubscribe(); clearInterval(throttle) }
+    return () => clearInterval(throttle)
   }, [eventBus, clock])
 
   // Count on-shift operators (reactive to shift changes)
