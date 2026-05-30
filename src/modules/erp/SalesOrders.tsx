@@ -5,6 +5,7 @@ import { Gauge } from '../../components/ui/Gauge'
 import { DenseDataTable, type Column } from '../../components/DenseDataTable'
 import { DrillInPanel } from '../../components/DrillInPanel'
 import { useUiStore } from '../../lib/uiStore'
+import type { ModuleRoute } from '../../lib/uiStore'
 import { cyrb53 } from '../../data/prng'
 import { cn } from '../../lib/utils'
 import type { SalesOrder, SalesOrderLine, OrderStatus, ErpData } from '../../data/erp/types'
@@ -227,12 +228,22 @@ function AtpCell({ status }: { status: AtpStatus }) {
 /** One segment of the ATP availability bar. */
 interface AtpSegment { key: string; label: string; value: number; bar: string; dot: string; text: string; glow: string }
 
+/** Where each ATP segment drills to. AtpSupply is aggregate (no materialNo),
+ *  so these are route-only handoffs — no material-scoped entity. */
+const SEGMENT_ROUTE: Record<string, ModuleRoute> = {
+  onHand: 'inventory',
+  inTransit: 'shipments',
+  planned: 'production-orders',
+  shortfall: 'mrp',
+}
+
 /**
  * Compact ATP availability panel: a segmented horizontal bar
  * (on-hand / in-transit / planned-production / shortfall) + a committed-vs-
  * available radial Gauge. Shortfall pulses .row-superhot (plan Visual Spec C).
  */
 function AtpAvailabilityPanel({ atp }: { atp: AtpSupply }) {
+  const setRoute = useUiStore(s => s.setRoute)
   const segments: AtpSegment[] = [
     { key: 'onHand', label: 'On Hand', value: atp.onHand, bar: 'bg-success', dot: 'bg-success', text: 'text-success', glow: 'rgba(52, 211, 153, 0.55)' },
     { key: 'inTransit', label: 'In Transit', value: atp.inTransit, bar: 'bg-info', dot: 'bg-info', text: 'text-info', glow: 'rgba(56, 189, 248, 0.5)' },
@@ -270,11 +281,18 @@ function AtpAvailabilityPanel({ atp }: { atp: AtpSupply }) {
           >
             {segments.map(seg =>
               seg.value > 0 ? (
-                <span
+                <button
                   key={seg.key}
-                  className={cn(seg.bar, seg.key === 'shortfall' && 'animate-pulse-soft')}
+                  type="button"
+                  onClick={() => setRoute(SEGMENT_ROUTE[seg.key])}
+                  className={cn(
+                    'cursor-pointer transition-[filter] hover:brightness-125 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent',
+                    seg.bar,
+                    seg.key === 'shortfall' && 'animate-pulse-soft',
+                  )}
                   style={{ width: `${(seg.value / total) * 100}%`, boxShadow: `0 0 8px -1px ${seg.glow}` }}
-                  title={`${seg.label}: ${qtyFmt(seg.value)}`}
+                  title={`${seg.label}: ${qtyFmt(seg.value)} — open`}
+                  aria-label={`${seg.label}: ${qtyFmt(seg.value)} — open`}
                 />
               ) : null,
             )}

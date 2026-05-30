@@ -140,6 +140,21 @@ function SectionTitle({ icon, text }: { icon: ReactNode; text: string }) {
   )
 }
 
+/** Accent-mono click-through to the source document (PO → Procurement, SO → Sales
+ *  Orders), mirroring the Production GenealogyLink vocabulary. */
+function RefDocLink({ id, onClick }: { id: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group inline-flex items-center gap-1 rounded-md border border-edge bg-accent/10 px-2 py-1 font-mono text-[11px] text-accent transition-colors hover:bg-accent/15 hover:text-accent-2 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+    >
+      <span className="group-hover:underline">{id}</span>
+      <ArrowRight size={11} strokeWidth={1.9} className="opacity-60 transition-opacity group-hover:opacity-100" />
+    </button>
+  )
+}
+
 /* ── Live loop time ─────────────────────────────────────────────────────────
  * The Control Tower owns the rAF dot animation; this table only needs a 1s-cadence
  * live position for the progress bar / ETA / late flag, so it polls like TopBar.
@@ -242,6 +257,7 @@ function etaLabel(s: Shipment, pos: number, loopT: number): string {
 export function ShipmentsModule({ scmData, eventBus }: ScmModuleProps) {
   const { networkNodes, lanes } = scmData
   const shipments = useShipments(s => s.shipments)
+  const navigateTo = useUiStore(s => s.navigateTo)
   const loopT = useLoopT()
 
   const [disruptedLanes, dispatchDisruption] = useReducer(disruptionReducer, undefined, () => new Set<string>())
@@ -391,8 +407,13 @@ export function ShipmentsModule({ scmData, eventBus }: ScmModuleProps) {
     const lane = laneById.get(row.laneId)
     const pos = posByShipment.get(row.shipmentNo) ?? 0
     const disrupted = disruptedLanes.has(row.laneId)
-    const ref =
-      row.refDoc.poNo ?? row.refDoc.salesOrderNo ?? '—'
+    const poNo = row.refDoc.poNo
+    const salesOrderNo = row.refDoc.salesOrderNo
+    const refValue: ReactNode = poNo
+      ? <RefDocLink id={poNo} onClick={() => navigateTo('procurement', { type: 'purchaseOrder', id: poNo })} />
+      : salesOrderNo
+        ? <RefDocLink id={salesOrderNo} onClick={() => navigateTo('sales-orders', { type: 'salesOrder', id: salesOrderNo })} />
+        : '—'
     return (
       <div className="space-y-5 text-xs">
         <section>
@@ -426,7 +447,7 @@ export function ShipmentsModule({ scmData, eventBus }: ScmModuleProps) {
         <section>
           <SectionTitle icon={<PackageCheck size={13} strokeWidth={1.9} />} text="Reference" />
           <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-3">
-            <DetailField label={row.direction === 'inbound' ? 'Purchase Order' : 'Sales Order'} value={ref} mono />
+            <DetailField label={row.direction === 'inbound' ? 'Purchase Order' : 'Sales Order'} value={refValue} mono />
           </div>
         </section>
       </div>

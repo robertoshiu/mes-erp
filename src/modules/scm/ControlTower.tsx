@@ -237,6 +237,7 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
   const shipments = useShipments(s => s.shipments)
   const selectEntity = useUiStore(s => s.selectEntity)
   const selectedEntity = useUiStore(s => s.selectedEntity)
+  const navigateTo = useUiStore(s => s.navigateTo)
 
   const reduced = useMemo(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -967,7 +968,26 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
                       </span>
                     </div>
                     <div className="mt-1 font-mono text-[10px] text-ink-3">
-                      {s.refDoc.poNo ?? s.refDoc.salesOrderNo ?? '—'} · {s.materialNo} ×{s.qty}
+                      {s.refDoc.poNo ? (
+                        <button
+                          type="button"
+                          onClick={() => navigateTo('procurement', { type: 'purchaseOrder', id: s.refDoc.poNo! })}
+                          className="rounded-sm text-accent transition-colors cursor-pointer hover:text-accent-2 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+                        >
+                          {s.refDoc.poNo}
+                        </button>
+                      ) : s.refDoc.salesOrderNo ? (
+                        <button
+                          type="button"
+                          onClick={() => navigateTo('sales-orders', { type: 'salesOrder', id: s.refDoc.salesOrderNo! })}
+                          className="rounded-sm text-accent transition-colors cursor-pointer hover:text-accent-2 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+                        >
+                          {s.refDoc.salesOrderNo}
+                        </button>
+                      ) : (
+                        '—'
+                      )}{' '}
+                      · {s.materialNo} ×{s.qty}
                     </div>
                     <div className="mt-1.5 flex items-center gap-1.5">
                       <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-3">

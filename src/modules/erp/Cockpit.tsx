@@ -12,6 +12,8 @@ import {
 import type { ReactNode } from 'react'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
 import { useBridgedLots } from '../../lib/useBridgedLots'
+import { useUiStore } from '../../lib/uiStore'
+import type { ModuleRoute, SelectedEntity } from '../../lib/uiStore'
 import { cn } from '../../lib/utils'
 import type { ErpModuleProps } from './types'
 
@@ -107,27 +109,66 @@ const TONE: Record<LaneTone, { text: string; bg: string; glow: string }> = {
 
 /* ── Subcomponents ──────────────────────────────────────────────────────── */
 
+/** Cross-domain destination for a chip's id, by lane. Lanes with no real
+ *  entity/route (planned, invoice) return null so their chips stay static. */
+function chipDestination(
+  laneKey: LaneKey,
+  id: string,
+): { route: ModuleRoute; entity: SelectedEntity } | null {
+  switch (laneKey) {
+    case 'so':
+      return { route: 'sales-orders', entity: { type: 'salesOrder', id } }
+    case 'prod':
+      return { route: 'production-orders', entity: { type: 'prodOrder', id } }
+    case 'lot':
+      return { route: 'production', entity: { type: 'lot', id } }
+    case 'gr':
+      return { route: 'materials', entity: { type: 'material', id } }
+    default:
+      return null
+  }
+}
+
 /** A single live document chip: glowing dot + mono id + optional sub-label.
- *  `fresh` = the newest chip in its lane → subtle accent glow ring. */
-function DocChip({ chip, fresh }: { chip: LaneChip; fresh: boolean }) {
+ *  `fresh` = the newest chip in its lane → subtle accent glow ring. When the
+ *  lane has a real cross-domain destination, the chip deep-links there. */
+function DocChip({
+  chip,
+  fresh,
+  laneKey,
+  navigateTo,
+}: {
+  chip: LaneChip
+  fresh: boolean
+  laneKey: LaneKey
+  navigateTo: (route: ModuleRoute, entity: SelectedEntity) => void
+}) {
   const tone = TONE[chip.tone]
-  return (
-    <div
-      className={cn(
-        'animate-rise flex items-center gap-2 rounded-md border px-2 py-1.5 transition-colors',
-        fresh
-          ? 'border-edge-strong bg-surface-3/70'
-          : 'border-edge bg-surface-2/50 hover:bg-surface-3/40',
-      )}
-      style={fresh ? { boxShadow: `0 0 0 1px ${tone.glow}, 0 0 14px -4px ${tone.glow}` } : undefined}
-    >
+  const dest = chipDestination(laneKey, chip.id)
+  const className = cn(
+    'animate-rise flex items-center gap-2 rounded-md border px-2 py-1.5 text-left transition-colors',
+    fresh
+      ? 'border-edge-strong bg-surface-3/70'
+      : 'border-edge bg-surface-2/50 hover:bg-surface-3/40',
+    dest && 'cursor-pointer hover:border-accent/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent',
+  )
+  const style = fresh ? { boxShadow: `0 0 0 1px ${tone.glow}, 0 0 14px -4px ${tone.glow}` } : undefined
+  const inner = (
+    <>
       <span
         className={cn('h-1.5 w-1.5 shrink-0 rounded-full', tone.bg)}
         style={{ boxShadow: `0 0 6px ${tone.glow}` }}
         aria-hidden
       />
       <div className="min-w-0 flex-1">
-        <div className="truncate font-mono text-[11px] leading-tight text-ink-1">{chip.id}</div>
+        <div
+          className={cn(
+            'truncate font-mono text-[11px] leading-tight',
+            dest ? 'text-accent group-hover:text-accent-2 group-hover:underline' : 'text-ink-1',
+          )}
+        >
+          {chip.id}
+        </div>
         {chip.sub && <div className="truncate text-[10px] leading-tight text-ink-3">{chip.sub}</div>}
       </div>
       {fresh && (
@@ -135,6 +176,18 @@ function DocChip({ chip, fresh }: { chip: LaneChip; fresh: boolean }) {
           New
         </span>
       )}
+    </>
+  )
+  if (dest) {
+    return (
+      <button type="button" onClick={() => navigateTo(dest.route, dest.entity)} className={cn('group', className)} style={style}>
+        {inner}
+      </button>
+    )
+  }
+  return (
+    <div className={className} style={style}>
+      {inner}
     </div>
   )
 }
@@ -186,10 +239,12 @@ function Lane({
   meta,
   state,
   bridgedLots,
+  navigateTo,
 }: {
   meta: LaneMeta
   state: LaneState
   bridgedLots?: BridgedLotView[]
+  navigateTo: (route: ModuleRoute, entity: SelectedEntity) => void
 }) {
   const tone = TONE[meta.tone]
   const hasContent = state.chips.length > 0 || (bridgedLots?.length ?? 0) > 0
@@ -246,7 +301,7 @@ function Lane({
 
         {/* Rolling document chips, newest-first. The first one is the freshest. */}
         {state.chips.map((chip, i) => (
-          <DocChip key={chip.seq} chip={chip} fresh={i === 0} />
+          <DocChip key={chip.seq} chip={chip} fresh={i === 0} laneKey={meta.key} navigateTo={navigateTo} />
         ))}
       </div>
     </Panel>
@@ -263,6 +318,7 @@ interface BridgedLotView {
 }
 
 export function CockpitModule({ erpData, eventBus }: ErpModuleProps) {
+  const navigateTo = useUiStore(s => s.navigateTo)
   // Seed lane counts from the static snapshot so the cockpit opens populated,
   // then increment live from the bus. Computed once (no randomness).
   const seed = useMemo<CockpitState>(
@@ -440,6 +496,7 @@ export function CockpitModule({ erpData, eventBus }: ErpModuleProps) {
             meta={meta}
             state={state[meta.key]}
             bridgedLots={meta.key === 'lot' ? lotViews : undefined}
+            navigateTo={navigateTo}
           />
         ))}
       </div>
