@@ -1,12 +1,32 @@
 import { useEffect, useState } from 'react'
-import { Radio, Users, Clock as ClockIcon } from 'lucide-react'
+import { Radio, Users, Clock as ClockIcon, ChevronRight } from 'lucide-react'
 import type { Clock } from '../lib/clock'
 import { useUiStore } from '../lib/uiStore'
+import { SPINE, type SpineBeat } from '../data/timeline'
 
 interface TopBarProps {
   clock: Clock
   operatorCount: number
 }
+
+const LOOP_SECS = 180
+
+// Scripted "beat" cues only — framing markers (Shift start / Loop restart) are
+// orientation chrome, not things a presenter narrates as "coming up next".
+const BEATS: SpineBeat[] = SPINE.filter(b => b.kind === 'beat')
+
+// Pure: the next scripted beat strictly after `t`, wrapping to the first beat of
+// the next cycle when none remain. Null only if there are no beats at all.
+function nextBeat(t: number): SpineBeat | null {
+  if (BEATS.length === 0) return null
+  return BEATS.find(b => b.t > t) ?? BEATS[0]
+}
+
+// Read the presenter flag once, SSR-safe. The base rail is always on; the
+// caption + beat ticks render only under `?present` so embeds stay minimal.
+const PRESENT =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).has('present')
 
 function formatTime(seconds: number): string {
   const h = Math.floor(seconds / 3600)
@@ -34,8 +54,13 @@ export function TopBar({ clock, operatorCount }: TopBarProps) {
     return () => clearInterval(id)
   }, [clock])
 
-  const progressPct = (loopT / 180) * 100
+  const progressPct = (loopT / LOOP_SECS) * 100
   const shiftColor = SHIFT_COLOR[currentShift] ?? '#38BDF8'
+
+  // Derived inline each tick — cheap; loopT already re-renders. No extra state/interval.
+  const beat = nextBeat(loopT)
+  const secondsUntil = beat ? Math.round((beat.t - loopT + LOOP_SECS) % LOOP_SECS) : 0
+  const countdown = `0:${String(secondsUntil).padStart(2, '0')}`
 
   return (
     <header className="relative h-14 shrink-0 flex items-center justify-between px-4 bg-surface/80 backdrop-blur-md border-b border-edge">
@@ -70,6 +95,17 @@ export function TopBar({ clock, operatorCount }: TopBarProps) {
         <span className="text-[9px] uppercase tracking-[0.22em] text-ink-mute font-mono">
           Cycle {String(loopIndex + 1).padStart(2, '0')} · Live
         </span>
+        {/* Presenter caption — where the loop is heading next */}
+        {PRESENT && beat && (
+          <span className="mt-0.5 inline-flex items-center gap-1.5 text-[10px] font-mono leading-none">
+            <ChevronRight size={11} className="text-accent animate-pulse-soft" strokeWidth={2.5} />
+            <span className="text-accent font-semibold uppercase tracking-[0.18em]">Next</span>
+            <span className="text-ink-mute">·</span>
+            <span className="text-ink-2 font-medium">{beat.name}</span>
+            <span className="text-ink-mute">·</span>
+            <span className="text-ink-3 tabular-nums">in {countdown}</span>
+          </span>
+        )}
       </div>
 
       {/* Right zone — shift / operators / feed */}
@@ -94,6 +130,15 @@ export function TopBar({ clock, operatorCount }: TopBarProps) {
 
       {/* Loop progress rail */}
       <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-edge/30">
+        {/* Per-beat tick marks — turns the rail into a timeline a presenter can point at */}
+        {PRESENT &&
+          BEATS.map(b => (
+            <span
+              key={b.t}
+              className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-2 w-px bg-accent/40"
+              style={{ left: `${(b.t / LOOP_SECS) * 100}%` }}
+            />
+          ))}
         <div
           className="h-full transition-all duration-1000 ease-linear"
           style={{
@@ -102,6 +147,17 @@ export function TopBar({ clock, operatorCount }: TopBarProps) {
             boxShadow: '0 0 10px rgba(34,211,238,0.7)',
           }}
         />
+        {/* Glowing position marker tracking current progress */}
+        {PRESENT && (
+          <span
+            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-2 w-2 rounded-full transition-all duration-1000 ease-linear"
+            style={{
+              left: `${progressPct}%`,
+              background: 'linear-gradient(90deg, #38BDF8, #22D3EE)',
+              boxShadow: '0 0 10px rgba(34,211,238,0.9)',
+            }}
+          />
+        )}
       </div>
     </header>
   )
