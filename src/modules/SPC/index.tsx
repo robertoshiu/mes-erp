@@ -33,6 +33,13 @@ const SPEC_LSL = 44.0
 const ACCENT = chartSeries[0] // cyan
 const VIOLATION = '#FB7185' // rose
 
+/** Human-readable Western Electric rule descriptions (engine emits rules 1, 2, 4). */
+const RULE_LABELS: Record<1 | 2 | 4, string> = {
+  1: '1 point beyond 3σ (UCL/LCL)',
+  2: '9 consecutive points same side of CL',
+  4: '14 consecutive alternating points',
+}
+
 /** Capability gating color: emerald (capable), amber (marginal), rose (incapable). */
 function capColor(v: number): string {
   if (v >= 1.33) return '#34D399'
@@ -286,7 +293,10 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
                   t={v.t.toFixed(0)}s
                 </span>
                 <span className="text-xs text-ink-1 flex-1 truncate">
-                  Rule {v.ruleNumber}
+                  <span className="px-1.5 py-0.5 mr-2 rounded bg-ink-3/15 text-ink-2 text-[10px] font-semibold tracking-wide shrink-0">
+                    Rule {v.ruleNumber}
+                  </span>
+                  {RULE_LABELS[v.ruleNumber]}
                   <span className="text-ink-3"> &middot; </span>
                   <span className="font-mono">{v.controlPoint.value.toFixed(2)} nm</span>
                 </span>
