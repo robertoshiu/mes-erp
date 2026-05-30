@@ -356,6 +356,14 @@
   animation: fp-sonar 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
+/* Marching ants — slides the lane's dash pattern along the path so disrupted
+   Control Tower lanes read as live/severed. Offset (104) is the LCM of the air
+   ("7 6"=13) and sea ("2 6"=8) dash periods, so the loop is seamless for both. */
+@keyframes fp-marching-ants {
+  to { stroke-dashoffset: -104; }
+}
+.animate-marching-ants { animation: fp-marching-ants 3s linear infinite; }
+
 /* Hot-lot row "flashing trail" — pulsing inset rail + glow (box-shadow only,
    so it never fights row background/selection tints). */
 @keyframes fp-row-hot {
@@ -391,6 +399,7 @@
   .animate-pulse-glow,
   .animate-pulse-soft,
   .animate-sonar,
+  .animate-marching-ants,
   .animate-blink,
   .row-hot,
   .row-superhot,

@@ -573,7 +573,7 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
                       strokeDasharray={LANE_DASH[g.lane.mode]}
                       strokeLinecap="round"
                       markerEnd="url(#ctArrow)"
-                      className={cn('pointer-events-none', disrupted && !reduced && 'animate-pulse-soft')}
+                      className={cn('pointer-events-none', disrupted && !reduced && 'animate-marching-ants')}
                       style={disrupted ? { filter: 'drop-shadow(0 0 5px rgba(244,63,94,0.7))' } : undefined}
                     />
                     {/* Disruption sonar on the affected lane midpoint (plan: legible statically too). */}
