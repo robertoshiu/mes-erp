@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Observable } from 'rxjs'
+import { Radio } from 'lucide-react'
 import type { AppEvent, AppTopic } from '../lib/events'
 import { cn } from '@/lib/utils'
 
 interface EventStreamProps {
   events$: Observable<AppEvent>
   maxVisible?: number
+  /**
+   * Optional backfill from the event ring buffer (oldest→newest). Lets a
+   * late-mounting stream hydrate with recent history instead of starting blank.
+   * Kept prop-driven so EventStream never imports the bus directly.
+   */
+  seed?: AppEvent[]
 }
 
 interface DisplayEvent {
@@ -97,21 +104,31 @@ const SEVERITY_STYLES: Record<string, string> = {
   routine: 'border-l border-l-white/[0.06]',
 }
 
-export function EventStream({ events$, maxVisible = 50 }: EventStreamProps) {
-  const [items, setItems] = useState<DisplayEvent[]>([])
+/** Wrap a raw bus event in a DisplayEvent (shared by the live feed + seed). */
+function toDisplayEvent(event: AppEvent): DisplayEvent {
+  const severity = severityOf(event)
+  const shouldPin = severity === 'critical' || severity === 'major'
+  return {
+    event,
+    id: ++eventCounter,
+    pinned: shouldPin,
+    pinnedUntil: shouldPin ? Date.now() + 10_000 : 0,
+  }
+}
+
+export function EventStream({ events$, maxVisible = 50, seed }: EventStreamProps) {
+  // Backfill from the ring buffer (oldest→newest) so the feed isn't blank on
+  // first navigate: reverse to newest-first, wrap, then cap at maxVisible.
+  const [items, setItems] = useState<DisplayEvent[]>(() => {
+    if (!seed || seed.length === 0) return []
+    return [...seed].reverse().map(toDisplayEvent).slice(0, maxVisible)
+  })
   const [paused, setPaused] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const sub = events$.subscribe(event => {
-      const severity = severityOf(event)
-      const shouldPin = severity === 'critical' || severity === 'major'
-      const entry: DisplayEvent = {
-        event,
-        id: ++eventCounter,
-        pinned: shouldPin,
-        pinnedUntil: shouldPin ? Date.now() + 10_000 : 0,
-      }
+      const entry = toDisplayEvent(event)
 
       setItems(prev => {
         const unpinned = prev.map(item => ({
@@ -143,7 +160,18 @@ export function EventStream({ events$, maxVisible = 50 }: EventStreamProps) {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      {items.map(item => {
+      {items.length === 0 ? (
+        <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
+          <span className="flex items-center justify-center w-11 h-11 rounded-full bg-accent/10 ring-1 ring-accent/30">
+            <Radio size={20} strokeWidth={1.9} className="text-accent animate-pulse-soft" />
+          </span>
+          <div className="text-[12px] font-semibold text-accent text-glow-soft">Bus listening</div>
+          <div className="text-[11px] text-ink-3">
+            Live events appear the moment the floor reports in.
+          </div>
+        </div>
+      ) : (
+        items.map(item => {
         const severity = severityOf(item.event)
         const meta = TOPIC_META[item.event.topic]
         return (
@@ -175,7 +203,8 @@ export function EventStream({ events$, maxVisible = 50 }: EventStreamProps) {
             </div>
           </div>
         )
-      })}
+        })
+      )}
     </div>
   )
 }

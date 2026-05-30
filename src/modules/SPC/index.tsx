@@ -82,27 +82,50 @@ function StatTile({ label, value, unit, accent = '#E8EEF7', glow, icon, sub }: S
   )
 }
 
+/** Map a raw spc.violation event to a chart point (caller assigns the index). */
+function toChartPoint(e: SpcViolationEvent, index: number): ChartPoint {
+  const isViolation = e.severity === 'warn' || e.severity === 'critical'
+  return {
+    index,
+    value: e.controlPoint.value,
+    isViolation,
+    ruleNumber: isViolation ? e.ruleNumber : undefined,
+    severity: e.severity,
+  }
+}
+
 export function SpcModule({ eventBus }: SpcModuleProps) {
-  const [points, setPoints] = useState<ChartPoint[]>([])
-  const [violations, setViolations] = useState<SpcViolationEvent[]>([])
+  // Backfill the control-chart series + violation log from the ring buffer on
+  // mount so navigating in after violations have fired shows existing data
+  // immediately instead of a blank chart. getBuffer() is oldest→newest: keep
+  // the last 100 in order for the chart; reverse for the newest-first log.
+  const [points, setPoints] = useState<ChartPoint[]>(() => {
+    const buffered = eventBus.getBuffer().filter(e => e.topic === 'spc.violation') as SpcViolationEvent[]
+    return buffered.slice(-100).map((e, i) => toChartPoint(e, i))
+  })
+  const [violations, setViolations] = useState<SpcViolationEvent[]>(() => {
+    const buffered = eventBus.getBuffer().filter(e => e.topic === 'spc.violation') as SpcViolationEvent[]
+    return buffered
+      .filter(e => e.severity === 'warn' || e.severity === 'critical')
+      .reverse()
+      .slice(0, 20)
+  })
 
   useEffect(() => {
-    let idx = 0
+    // Continue the X-axis index past the seeded points so post-mount events
+    // never collide with the backfilled series (do NOT reset to 0).
+    let idx = points.length
     const sub = eventBus.ofTopic('spc.violation').subscribe(e => {
-      const isViolation = e.severity === 'warn' || e.severity === 'critical'
-      const point: ChartPoint = {
-        index: idx++,
-        value: e.controlPoint.value,
-        isViolation,
-        ruleNumber: isViolation ? e.ruleNumber : undefined,
-        severity: e.severity,
-      }
+      const point = toChartPoint(e, idx++)
       setPoints(prev => [...prev.slice(-99), point])
-      if (isViolation) {
+      if (point.isViolation) {
         setViolations(prev => [e, ...prev].slice(0, 20))
       }
     })
     return () => sub.unsubscribe()
+    // `points` is read once at mount only to seed `idx`; adding it to deps would
+    // re-subscribe on every new point and drop events.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventBus])
 
   const current = points.length > 0 ? points[points.length - 1].value : null
@@ -171,7 +194,7 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
             </span>
           }
         />
-        <div className="flex-1 p-3.5 min-h-0">
+        <div className="relative flex-1 p-3.5 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={points} margin={{ top: 10, right: 24, bottom: 6, left: 4 }}>
               <ChartDefs />
@@ -210,6 +233,21 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
               />
             </AreaChart>
           </ResponsiveContainer>
+          {/* Warm "bus listening" overlay — the chart stays mounted underneath
+              so live telemetry animates in seamlessly once it arrives. */}
+          {points.length === 0 && (
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 text-center">
+              <span className="flex items-center justify-center w-12 h-12 rounded-full bg-accent/10 ring-1 ring-accent/30">
+                <Radio size={22} strokeWidth={1.9} className="text-accent animate-pulse-soft" />
+              </span>
+              <div className="text-[13px] font-semibold text-accent text-glow-soft">
+                Awaiting SPC telemetry
+              </div>
+              <div className="text-[11px] text-ink-3">
+                Control points stream in as the line runs.
+              </div>
+            </div>
+          )}
         </div>
       </Panel>
 

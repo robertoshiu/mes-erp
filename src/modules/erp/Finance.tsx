@@ -70,7 +70,14 @@ export function FinanceModule({ erpData, eventBus }: ErpModuleProps) {
     kpis.revenue > 0 ? Math.round(((kpis.revenue - kpis.openAr) / kpis.revenue) * 100) : 0
 
   // --- Live GL postings ledger ---------------------------------------------
-  const [postings, setPostings] = useState<GlPostingEvent[]>([])
+  // Backfill from the ring buffer on mount so the ledger isn't blank when
+  // navigating in after postings have fired. getBuffer() is oldest→newest, so
+  // reverse to match the live newest-first prepend, then cap at MAX_POSTINGS.
+  const [postings, setPostings] = useState<GlPostingEvent[]>(() =>
+    (eventBus.getBuffer().filter(e => e.topic === 'erp.gl.posting') as GlPostingEvent[])
+      .reverse()
+      .slice(0, MAX_POSTINGS),
+  )
 
   useEffect(() => {
     const sub = eventBus.ofTopic('erp.gl.posting').subscribe(e => {

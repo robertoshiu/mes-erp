@@ -17,6 +17,9 @@ export function FabFloor({ eventBus, masterData }: FabFloorProps) {
   const lotMove$ = useMemo(() => eventBus.ofTopic('lot.move'), [eventBus])
   const kpiTick$ = useMemo(() => eventBus.ofTopic('kpi.tick'), [eventBus])
   const allEvents$ = useMemo(() => eventBus.all$(), [eventBus])
+  // Snapshot the ring buffer at mount so the stream backfills with recent
+  // history instead of starting blank when navigating in after the sim has run.
+  const seedEvents = useMemo(() => eventBus.getBuffer(), [eventBus])
 
   return (
     <div className="flex h-full gap-4 p-4 bg-canvas">
@@ -57,7 +60,7 @@ export function FabFloor({ eventBus, masterData }: FabFloorProps) {
           }
         />
         <div className="flex-1 min-h-0">
-          <EventStream events$={allEvents$} />
+          <EventStream events$={allEvents$} seed={seedEvents} />
         </div>
       </Panel>
     </div>
