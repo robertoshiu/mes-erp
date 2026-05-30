@@ -84,15 +84,3 @@ export const glow = {
   sky: 'rgba(56, 189, 248, 0.5)',
   indigo: 'rgba(129, 140, 248, 0.5)',
 } as const
-
-export const motion = {
-  instant: 80,
-  quick: 180,
-  smooth: 300,
-  deliberate: 600,
-} as const
-
-export const easing = {
-  standard: 'cubic-bezier(0.4, 0, 0.2, 1)',
-  decel: 'cubic-bezier(0, 0, 0.2, 1)',
-} as const
