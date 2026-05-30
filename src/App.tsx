@@ -6,6 +6,7 @@ import {
   ChevronDown, ChevronRight,
 } from 'lucide-react'
 import { useUiStore, type ModuleRoute, type BadgeCounts } from './lib/uiStore'
+import type { E10State } from './lib/events'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { TopBar } from './components/TopBar'
 import { generateMasterData } from './data/master'
@@ -204,22 +205,30 @@ export default function App() {
     useUiStore.getState().updateBadges({ shortages, openOrders, latePOs })
   }, [erpData])
 
-  // MES badge counts (throttled at 1s)
+  // MES badge counts (throttled at 1s). Derived from the event ring buffer each
+  // tick rather than accumulated, so a 180s loop replay can't make them drift:
+  // alarms = unacked alarm.raised (pre-acked spine alarms carry ackOperatorId and
+  // don't count); equipmentDown = tools whose latest equip.state left them down.
   useEffect(() => {
-    let alarmCount = 0
-    let lotCount = 0
-    let downCount = 0
-    const sub = eventBus.all$().subscribe(e => {
-      if (e.topic === 'alarm.raised' && !e.ackOperatorId) alarmCount++
-      if (e.topic === 'alarm.raised' && e.ackOperatorId) alarmCount = Math.max(0, alarmCount - 1)
-      if (e.topic === 'lot.move') lotCount = masterData.lots.filter(l => l.status === 'in-process').length
-      if (e.topic === 'equip.state' && (e.toState === 'SDT' || e.toState === 'UDT')) downCount++
-      if (e.topic === 'equip.state' && e.fromState !== 'PROD' && e.toState === 'PROD') downCount = Math.max(0, downCount - 1)
-    })
     const throttle = setInterval(() => {
-      useUiStore.getState().updateBadges({ alarms: alarmCount, production: lotCount, equipmentDown: downCount })
+      const buffer = eventBus.getBuffer()
+
+      const alarms = buffer.filter(e => e.topic === 'alarm.raised' && !e.ackOperatorId).length
+
+      const latestState = new Map<string, E10State>()
+      for (const e of buffer) {
+        if (e.topic === 'equip.state') latestState.set(e.toolId, e.toState)
+      }
+      let equipmentDown = 0
+      for (const state of latestState.values()) {
+        if (state === 'SDT' || state === 'UDT') equipmentDown++
+      }
+
+      const production = masterData.lots.filter(l => l.status === 'in-process').length
+
+      useUiStore.getState().updateBadges({ alarms, production, equipmentDown })
     }, 1000)
-    return () => { sub.unsubscribe(); clearInterval(throttle) }
+    return () => clearInterval(throttle)
   }, [eventBus, masterData])
 
   // SCM badge counts (throttled at 1s, mirroring the MES badge effect): inTransit
