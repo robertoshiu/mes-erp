@@ -28,7 +28,7 @@ export function DrillInPanel({ children, title, subtitle }: DrillInPanelProps) {
       initial={{ x: 36, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.22, ease: [0, 0, 0.2, 1] }}
-      className="fixed top-14 right-0 bottom-0 w-[420px] glass border-l border-edge-strong z-50 overflow-y-auto"
+      className="fixed top-14 right-0 bottom-0 w-[min(420px,70vw)] max-w-[420px] glass border-l border-edge-strong z-50 overflow-y-auto"
       style={{ boxShadow: '-30px 0 60px -30px rgba(0,0,0,0.9)' }}
     >
       <div className="sticky top-0 z-10 flex items-center gap-2.5 px-4 py-3 border-b border-edge bg-surface/80 backdrop-blur-md">
