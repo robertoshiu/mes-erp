@@ -173,12 +173,12 @@ export function AlarmsModule({ eventBus }: AlarmsModuleProps) {
               <span className="font-mono text-xs">Alarm bus listening...</span>
             </div>
           ) : (
-            alarms.map((alarm, i) => {
+            alarms.map((alarm) => {
               const s = SEVERITY[alarm.severity]
               const selected = selectedAlarm?.alarmId === alarm.alarmId
               return (
                 <button
-                  key={`${alarm.alarmId}-${i}`}
+                  key={`${alarm.alarmId}-${alarm.t}`}
                   type="button"
                   onClick={() => selectEntity({ type: 'alarm', id: alarm.alarmId })}
                   className={cn(

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Cpu, ScrollText, Radio } from 'lucide-react'
 import { DenseDataTable, type Column } from '../../components/DenseDataTable'
 import { DrillInPanel } from '../../components/DrillInPanel'
@@ -104,26 +104,34 @@ function Typewriter({ text, speed = 18 }: { text: string; speed?: number }) {
   )
 }
 
+interface SecsLine {
+  seq: number
+  text: string
+}
+
 export function EquipmentModule({ eventBus, masterData }: EquipmentModuleProps) {
   const [states, setStates] = useState<Record<string, E10State>>(() => {
     const m: Record<string, E10State> = {}
     for (const eq of masterData.equipment) m[eq.toolId] = eq.initialState
     return m
   })
-  const [secsLog, setSecsLog] = useState<string[]>([])
+  const [secsLog, setSecsLog] = useState<SecsLine[]>([])
+  const seqRef = useRef(0)
   const selectEntity = useUiStore(s => s.selectEntity)
   const selectedEntity = useUiStore(s => s.selectedEntity)
 
   useEffect(() => {
+    const append = (text: string) =>
+      setSecsLog(prev => [{ seq: seqRef.current++, text }, ...prev].slice(0, 50))
     const sub = eventBus.ofTopic('equip.state').subscribe(e => {
       setStates(prev => ({ ...prev, [e.toolId]: e.toState }))
       if (selectedEntity?.type === 'equipment' && selectedEntity.id === e.toolId) {
-        setSecsLog(prev => [formatE10Transition(e.toolId, e.fromState, e.toState, e.reasonCode), ...prev].slice(0, 50))
+        append(formatE10Transition(e.toolId, e.fromState, e.toState, e.reasonCode))
       }
     })
     const sub2 = eventBus.ofTopic('recipe.load').subscribe(e => {
       if (selectedEntity?.type === 'equipment' && selectedEntity.id === e.toolId) {
-        setSecsLog(prev => [formatRecipeLoad(e.toolId, e.recipeId, e.recipeVersion), ...prev].slice(0, 50))
+        append(formatRecipeLoad(e.toolId, e.recipeId, e.recipeVersion))
       }
     })
     return () => { sub.unsubscribe(); sub2.unsubscribe() }
@@ -242,14 +250,14 @@ export function EquipmentModule({ eventBus, masterData }: EquipmentModuleProps) 
                   <div className="mb-2 border-b border-edge pb-2 last:border-b-0 flex gap-2">
                     <span className="select-none text-e10-prod shrink-0">&gt;</span>
                     <pre className="whitespace-pre-wrap text-ink-2 m-0">
-                      <Typewriter text={secsLog[0]} />
+                      <Typewriter text={secsLog[0].text} />
                     </pre>
                   </div>
                 )}
-                {secsLog.slice(1).map((msg, i) => (
-                  <div key={i} className="mb-2 border-b border-edge pb-2 last:border-b-0 flex gap-2">
+                {secsLog.slice(1).map(msg => (
+                  <div key={msg.seq} className="mb-2 border-b border-edge pb-2 last:border-b-0 flex gap-2">
                     <span className="select-none text-e10-prod shrink-0">&gt;</span>
-                    <pre className="whitespace-pre-wrap text-ink-2 m-0">{msg}</pre>
+                    <pre className="whitespace-pre-wrap text-ink-2 m-0">{msg.text}</pre>
                   </div>
                 ))}
               </div>

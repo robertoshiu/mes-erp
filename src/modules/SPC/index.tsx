@@ -226,11 +226,11 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
           {violations.length === 0 && (
             <div className="text-xs text-ink-3 font-mono py-3">No violations detected</div>
           )}
-          {violations.map((v, i) => {
+          {violations.map((v) => {
             const isCritical = v.severity === 'critical'
             return (
               <div
-                key={i}
+                key={`${v.measurementId}-${v.t}`}
                 className={cn(
                   'flex items-center gap-3 py-1.5 px-2 -mx-2 rounded-sm border-b border-edge last:border-b-0',
                   isCritical && 'bg-critical/10',
