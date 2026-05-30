@@ -922,7 +922,7 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
       {/* Drill-in: click a node/lane → its shipment list (cross-filters the
           Shipments table via the shared selectedEntity store). */}
       {drill && (
-        <DrillInPanel title={drill.title} subtitle={drill.subtitle}>
+        <DrillInPanel overlay title={drill.title} subtitle={drill.subtitle}>
           <div className="flex flex-col gap-2">
             {/* Disruption banner — when the selected lane is under an active
                 disruption, lead with the reason so a click on the red line

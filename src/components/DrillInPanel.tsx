@@ -7,9 +7,17 @@ interface DrillInPanelProps {
   children: React.ReactNode
   title: string
   subtitle?: string
+  /**
+   * Render as a `fixed` overlay (paints over the content) instead of an in-flow
+   * flex sibling. Use only for screens whose layout cannot reserve the panel's
+   * width — the Control Tower (vertical flex column with a flagship map) and the
+   * Supplier Scorecards grid. Table-row screens omit this so the table compresses
+   * into the space left of the panel instead of being occluded.
+   */
+  overlay?: boolean
 }
 
-export function DrillInPanel({ children, title, subtitle }: DrillInPanelProps) {
+export function DrillInPanel({ children, title, subtitle, overlay = false }: DrillInPanelProps) {
   const selectedEntity = useUiStore(s => s.selectedEntity)
   const selectEntity = useUiStore(s => s.selectEntity)
 
@@ -28,7 +36,11 @@ export function DrillInPanel({ children, title, subtitle }: DrillInPanelProps) {
       initial={{ x: 36, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.22, ease: [0, 0, 0.2, 1] }}
-      className="fixed top-14 right-0 bottom-0 w-[min(420px,70vw)] max-w-[420px] glass border-l border-edge-strong z-50 overflow-y-auto"
+      className={
+        overlay
+          ? 'fixed top-14 right-0 bottom-0 w-[min(420px,70vw)] max-w-[420px] glass border-l border-edge-strong z-50 overflow-y-auto'
+          : 'relative shrink-0 h-full w-[min(420px,70vw)] max-w-[420px] glass border-l border-edge-strong overflow-y-auto'
+      }
       style={{ boxShadow: '-30px 0 60px -30px rgba(0,0,0,0.9)' }}
     >
       <div className="sticky top-0 z-10 flex items-center gap-2.5 px-4 py-3 border-b border-edge bg-surface/80 backdrop-blur-md">

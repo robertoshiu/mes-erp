@@ -349,7 +349,7 @@ export function ShipmentsModule({ scmData, eventBus }: ScmModuleProps) {
       sortFn: (a, b) => a.direction.localeCompare(b.direction),
     },
     {
-      key: 'route', header: 'From → To', width: 240,
+      key: 'route', header: 'From → To', width: 240, flex: true,
       render: r => {
         const lane = laneById.get(r.laneId)
         return (

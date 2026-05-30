@@ -122,7 +122,7 @@ export function AlarmsModule({ eventBus }: AlarmsModuleProps) {
 
   return (
     <div className="flex h-full">
-      <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4">
+      <div className="min-w-0 flex-1 p-4 overflow-y-auto flex flex-col gap-4">
         {/* Header strip — alarm desk + severity summary */}
         <Panel className="shrink-0">
           <PanelHeader

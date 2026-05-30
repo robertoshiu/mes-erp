@@ -343,7 +343,7 @@ const cols: Column<AtpOrder>[] = [
     sortFn: (a, b) => a.orderNo.localeCompare(b.orderNo),
   },
   {
-    key: 'customerName', header: 'Customer', width: 170,
+    key: 'customerName', header: 'Customer', width: 170, flex: true,
     render: r => r.customerName,
     sortFn: (a, b) => a.customerName.localeCompare(b.customerName),
   },

@@ -335,7 +335,7 @@ export function SupplierScorecardsModule({ scmData }: ScmModuleProps) {
       </Panel>
 
       {selected && (
-        <DrillInPanel title={selected.name} subtitle={`${selected.bpNo} · supplier scorecard`}>
+        <DrillInPanel overlay title={selected.name} subtitle={`${selected.bpNo} · supplier scorecard`}>
           <ScorecardDetail card={selected} />
         </DrillInPanel>
       )}
