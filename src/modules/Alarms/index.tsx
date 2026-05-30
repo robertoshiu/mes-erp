@@ -6,9 +6,11 @@ import { useUiStore } from '../../lib/uiStore'
 import { cn } from '../../lib/utils'
 import type { EventBus } from '../../lib/eventBus'
 import type { AlarmRaisedEvent } from '../../lib/events'
+import type { Clock } from '../../lib/clock'
 
 interface AlarmsModuleProps {
   eventBus: EventBus
+  clock: Clock
 }
 
 type Severity = AlarmRaisedEvent['severity']
@@ -82,16 +84,24 @@ function SeverityChip({
   )
 }
 
-export function AlarmsModule({ eventBus }: AlarmsModuleProps) {
+export function AlarmsModule({ eventBus, clock }: AlarmsModuleProps) {
   // Backfill from the bus ring buffer on mount so the desk immediately shows the
   // alarms that already lit the sidebar badge — otherwise the feed starts empty
   // and (since alarms are rare/scripted) the user waits a long time for the next
   // one, which reads as "slow to load" and disconnected from the badge count.
-  const [alarms, setAlarms] = useState<AlarmRaisedEvent[]>(() =>
-    (eventBus.getBuffer().filter(e => e.topic === 'alarm.raised') as AlarmRaisedEvent[])
+  // Fold BOTH alarm.raised and alarm.ack (oldest→newest) so an alarm acked in a
+  // previous mount seeds with its ackOperatorId set — matching the sidebar badge,
+  // which is recomputed from the same buffer.
+  const [alarms, setAlarms] = useState<AlarmRaisedEvent[]>(() => {
+    const acked = new Map<string, string>()
+    for (const e of eventBus.getBuffer()) {
+      if (e.topic === 'alarm.ack') acked.set(e.alarmId, e.operatorId)
+    }
+    return (eventBus.getBuffer().filter(e => e.topic === 'alarm.raised') as AlarmRaisedEvent[])
       .slice(-100)
-      .reverse(),
-  )
+      .reverse()
+      .map(a => (acked.has(a.alarmId) ? { ...a, ackOperatorId: acked.get(a.alarmId) } : a))
+  })
   const selectEntity = useUiStore(s => s.selectEntity)
   const selectedEntity = useUiStore(s => s.selectedEntity)
 
@@ -272,7 +282,7 @@ export function AlarmsModule({ eventBus }: AlarmsModuleProps) {
                 onClick={() =>
                   eventBus.publish({
                     topic: 'alarm.ack',
-                    t: selectedAlarm.t,
+                    t: clock.loopT(),
                     alarmId: selectedAlarm.alarmId,
                     operatorId: 'OP-001',
                     severity: selectedAlarm.severity,

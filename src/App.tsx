@@ -409,7 +409,7 @@ export default function App() {
       case 'equipment': return <EquipmentModule eventBus={eventBus} masterData={masterData} />
       case 'spc': return <SpcModule eventBus={eventBus} />
       case 'recipe': return <RecipeModule masterData={masterData} />
-      case 'alarms': return <AlarmsModule eventBus={eventBus} />
+      case 'alarms': return <AlarmsModule eventBus={eventBus} clock={clock} />
       case 'kpi': return <KpiDashboard eventBus={eventBus} totalEquipment={masterData.equipment.length} />
       case 'erp-cockpit': return <CockpitModule erpData={erpData} eventBus={eventBus} />
       case 'mrp': return <MrpModule erpData={erpData} eventBus={eventBus} />
