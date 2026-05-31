@@ -59,7 +59,15 @@ function makeScmData(over: Partial<ScmData> = {}): ScmData {
 
 const ERP: ErpData = {
   materials: [], businessPartners: [], boms: [], workCenters: [], costCenters: [],
-  glAccounts: [], plants: [], salesOrders: [], purchaseOrders: [], inventory: [],
+  glAccounts: [], plants: [], inventory: [],
+  // seedInbound/seedOutbound reference a real open PO / live SO so a seeded
+  // shipment's refDoc resolves on cross-domain click (T33); give the driver one each.
+  salesOrders: [
+    { orderNo: 'SO-1', bpNo: 'BP-1', customerName: 'Customer One', orderDate: 'D0', requestedDate: 'D+5', status: 'open', priority: 'normal', netValue: 1000, lines: [{ lineNo: 1, materialNo: 'MAT-1', description: 'x', qty: 40, netPrice: 25 }] },
+  ],
+  purchaseOrders: [
+    { poNo: 'PO-1', bpNo: 'BP-1', vendorName: 'Supplier One', orderDate: 'D0', deliveryDate: 'D+5', status: 'open', netValue: 1200, lines: [{ lineNo: 1, materialNo: 'MAT-RAW-1', description: 'x', qty: 120, netPrice: 10 }] },
+  ],
   productionOrders: [
     { orderNo: 'PRO-1', materialNo: 'MAT-1', description: 'x', routeId: 'R1', targetQty: 100, status: 'Released', salesOrderNo: 'SO-9001', lotId: null },
   ],
