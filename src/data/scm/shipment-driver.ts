@@ -60,6 +60,16 @@ export function createShipmentDriver(
     erpData.productionOrders.map(o => [o.orderNo, o.salesOrderNo]),
   )
 
+  // Real ERP orders the Procurement / Sales-Orders screens render, so a SEEDED
+  // shipment's refDoc resolves on cross-domain click (T33). Same status filters
+  // the ERP screens + generateShipments use; empty pool → seed* returns null.
+  const openPos = erpData.purchaseOrders.filter(
+    po => po.status === 'open' || po.status === 'confirmed' || po.status === 'late',
+  )
+  const liveSos = erpData.salesOrders.filter(
+    so => so.status === 'open' || so.status === 'in-process',
+  )
+
   const transitSecondsOf = (lane: Lane): number =>
     Math.max(2, Math.round(lane.transitDays * TRANSIT_SECONDS_PER_DAY))
 
@@ -235,6 +245,11 @@ export function createShipmentDriver(
     const supplier = pick(supplierNodes, rng)
     const lane = laneBetween(supplier.id, fabNode.id)
     if (!lane) return null
+    // Reference a real open PO so the refDoc resolves in Procurement (T33).
+    if (openPos.length === 0) return null
+    const po = pick(openPos, rng)
+    const line = po.lines[0]
+    if (!line) return null
     const transitSeconds = transitSecondsOf(lane)
     return {
       shipmentNo: `SHP-${500000 + driverSeq++}`,
@@ -242,9 +257,9 @@ export function createShipmentDriver(
       fromNode: supplier.id,
       toNode: fabNode.id,
       laneId: lane.id,
-      refDoc: { poNo: `PO-${100000 + Math.floor(rng() * 9999)}` },
-      materialNo: `MAT-${Math.floor(rng() * 100)}`,
-      qty: (1 + Math.floor(rng() * 20)) * 10,
+      refDoc: { poNo: po.poNo },
+      materialNo: line.materialNo,
+      qty: line.qty,
       status: 'in-transit',
       // Spread departureT so seeded dots scatter mid-lane on first paint (design Fix 9).
       departureT: boundaryT - rng() * transitSeconds,
@@ -259,6 +274,11 @@ export function createShipmentDriver(
     const lane =
       (dc && laneBetween(fabNode.id, dc.id)) ?? laneBetween(fabNode.id, customer.id)
     if (!lane) return null
+    // Reference a real live SO so the refDoc resolves in Sales Orders (T33).
+    if (liveSos.length === 0) return null
+    const so = pick(liveSos, rng)
+    const line = so.lines[0]
+    if (!line) return null
     const transitSeconds = transitSecondsOf(lane)
     return {
       shipmentNo: `SHP-${500000 + driverSeq++}`,
@@ -266,9 +286,9 @@ export function createShipmentDriver(
       fromNode: fabNode.id,
       toNode: customer.id,
       laneId: lane.id,
-      refDoc: { salesOrderNo: `SO-${200000 + Math.floor(rng() * 9999)}` },
-      materialNo: `MAT-${Math.floor(rng() * 100)}`,
-      qty: (1 + Math.floor(rng() * 20)) * 10,
+      refDoc: { salesOrderNo: so.orderNo },
+      materialNo: line.materialNo,
+      qty: line.qty,
       status: 'in-transit',
       departureT: boundaryT - rng() * transitSeconds,
       transitSeconds,
