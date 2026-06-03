@@ -107,6 +107,31 @@ export function ProductionModule({ eventBus, masterData }: ProductionModuleProps
     return n > 0 ? (sum / n) * 100 : 0
   }, [lotSteps, masterData.lots])
 
+  // Steady WIP flow: advance a rotating batch of active lots each second so the
+  // Progress column is visibly live regardless of which rows are scrolled into the
+  // virtualized view — background lot.move events alone touch only ~0.4 rows/sec, so
+  // the board read as frozen. A lot that finishes its route wraps back to the start
+  // (a new lot entering the line), keeping a wall-mounted board perpetually moving.
+  useEffect(() => {
+    const active = masterData.lots.filter(l => l.status === 'in-process' || l.status === 'queued')
+    if (active.length === 0) return
+    const BATCH = 6
+    let cursor = 0
+    const id = setInterval(() => {
+      setLotSteps(prev => {
+        const next = { ...prev }
+        for (let k = 0; k < BATCH; k++) {
+          const lot = active[(cursor + k) % active.length]
+          const cur = next[lot.lotId] ?? lot.currentStep
+          next[lot.lotId] = cur < lot.totalSteps ? cur + 1 : 0
+        }
+        cursor = (cursor + BATCH) % active.length
+        return next
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [masterData.lots])
+
   const columns: Column<Lot>[] = useMemo(() => [
     { key: 'lotId', header: 'Lot ID', width: 170, mono: true, render: r => r.lotId, sortFn: (a, b) => a.lotId.localeCompare(b.lotId) },
     { key: 'productCode', header: 'Product', width: 120, mono: true, render: r => r.productCode },

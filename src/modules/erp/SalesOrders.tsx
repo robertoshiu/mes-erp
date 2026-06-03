@@ -434,11 +434,16 @@ export function SalesOrdersModule({ erpData, eventBus }: ErpModuleProps) {
   // then append live deltas — deduped by orderNo — so the table, header counts,
   // and ATP panel grow with the order flow instead of freezing on the seed.
   const [liveOrders, setLiveOrders] = useState<SalesOrder[]>(() => {
+    // Dedup against the seed AND within the buffer itself: the ERP engine resets
+    // its sequence each loop, so the ring buffer holds repeated orderNos
+    // (SO-200000…) — mapping them blindly produced duplicate React keys.
     const seen = new Set(erpData.salesOrders.map(o => o.orderNo))
-    const fromBuf = eventBus.getBuffer()
-      .filter((e): e is OrderCreatedEvent => e.topic === 'erp.order.created')
-      .filter(e => !seen.has(e.orderNo))
-      .map(e => makeSalesOrderFromEvent(e, matByNo, baseDate))
+    const fromBuf: SalesOrder[] = []
+    for (const e of eventBus.getBuffer()) {
+      if (e.topic !== 'erp.order.created' || seen.has(e.orderNo)) continue
+      seen.add(e.orderNo)
+      fromBuf.push(makeSalesOrderFromEvent(e, matByNo, baseDate))
+    }
     return [...fromBuf.reverse(), ...erpData.salesOrders]
   })
 

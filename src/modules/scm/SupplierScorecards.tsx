@@ -45,17 +45,45 @@ function isAtRisk(s: SupplierScorecard): boolean {
   return s.onTimePct < PCT_HEALTHY || s.qualityPct < PCT_HEALTHY || s.avgLeadDays > LEAD_HEALTHY
 }
 
+/** Stable per-vendor salt so each scorecard drifts on its own phase. */
+function bpSalt(bpNo: string): number {
+  let h = 0
+  for (let i = 0; i < bpNo.length; i++) h = (h * 31 + bpNo.charCodeAt(i)) >>> 0
+  return h % 997
+}
+
+const clampPct = (v: number) => Math.max(55, Math.min(99.9, v))
+
 /** Fold live supplier ASNs (scm.supplier.asn) from the ring buffer onto the seeded
- *  scorecards: each notice bumps that vendor's Open-ASN count. The buffer is bounded
- *  (~last 1000 events) so the count rises during a loop and self-heals as old ASNs
- *  age out — no unbounded growth across loop wraps. */
+ *  scorecards. Each notice bumps that vendor's Open-ASN count AND nudges its
+ *  on-time / quality / lead gauges along a bounded deterministic oscillation, so the
+ *  whole card visibly updates as notices arrive — not just a corner counter. The
+ *  ring buffer is bounded (~last 1000 events) so counts self-heal across loop wraps. */
 function foldAsns(base: SupplierScorecard[], buffer: AppEvent[]): SupplierScorecard[] {
   const asnByBp = new Map<string, number>()
   for (const e of buffer) {
     if (e.topic === 'scm.supplier.asn') asnByBp.set(e.bpNo, (asnByBp.get(e.bpNo) ?? 0) + 1)
   }
   if (asnByBp.size === 0) return base
-  return base.map(c => ({ ...c, openAsns: c.openAsns + (asnByBp.get(c.bpNo) ?? 0) }))
+  // Global ASN tick so EVERY card drifts a little on every notice (not only the
+  // one vendor that received it) — the panel reads as continuously live.
+  let total = 0
+  for (const v of asnByBp.values()) total += v
+  return base.map(c => {
+    const n = asnByBp.get(c.bpNo) ?? 0
+    if (n === 0 && total === 0) return c
+    const salt = bpSalt(c.bpNo)
+    // phase advances on every ASN (total increments) and carries a per-vendor
+    // offset, so all gauges move continuously yet each on its own curve.
+    const wave = (k: number) => Math.sin(total * 0.22 + n * 0.4 + salt * 0.013 + k)
+    return {
+      ...c,
+      openAsns: c.openAsns + n,
+      onTimePct: clampPct(c.onTimePct + wave(0) * 3),
+      qualityPct: clampPct(c.qualityPct + wave(1.7) * 2),
+      avgLeadDays: Math.max(2, c.avgLeadDays + wave(3.1) * 2.5),
+    }
+  })
 }
 
 /** Deterministic 12-point trend tail for a metric, seeded off the supplier id +

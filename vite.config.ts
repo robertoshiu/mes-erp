@@ -11,6 +11,26 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Keep recharts + its (CommonJS) dependency cluster in ONE chunk. Vite 8's
+        // rolldown bundler mis-wires es-toolkit's CJS interop when recharts is split
+        // across the lazy route chunks — the XAxis chunk ends up calling a
+        // `require_get` that lives in the AreaChart chunk, throwing
+        // "require_get is not a function" and crashing EVERY full-Cartesian chart
+        // (KPI, SPC, Demand Planning) in the production build only (dev/esbuild is
+        // fine). Co-locating them removes the cross-chunk reference. See the
+        // dashboard-liveness debugging notes.
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return
+          if (/[\\/]node_modules[\\/](recharts|es-toolkit|victory-vendor|d3-[a-z0-9-]+|internmap|react-is|decimal\.js[a-z-]*|fast-equals|reduce-css-calc|reselect|immer|redux|react-redux|@reduxjs[\\/]toolkit|react-smooth|react-transition-group|eventemitter3|tiny-invariant)[\\/]/.test(id)) {
+            return 'charts'
+          }
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     // Default to the node environment: every current test is pure logic (PRNG,
