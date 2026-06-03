@@ -126,8 +126,17 @@ function HeroGaugeCard({
 }
 
 export function KpiDashboard({ eventBus, totalEquipment }: KpiDashboardProps) {
-  const [history, setHistory] = useState<KpiTickEvent[]>([])
-  const [currentKpi, setCurrentKpi] = useState<ReturnType<typeof computeKpis> | null>(null)
+  // Seed from the ring buffer on mount so the gauges/tiles paint a real value on
+  // first frame instead of "Priming…" (ringBuffer$ is live-only, no replay).
+  const [history, setHistory] = useState<KpiTickEvent[]>(() => {
+    const buffer = eventBus.getBuffer()
+    if (buffer.length === 0) return []
+    return [{ topic: 'kpi.tick', t: buffer[buffer.length - 1].t, ...computeKpis(buffer, totalEquipment) }]
+  })
+  const [currentKpi, setCurrentKpi] = useState<ReturnType<typeof computeKpis> | null>(() => {
+    const buffer = eventBus.getBuffer()
+    return buffer.length > 0 ? computeKpis(buffer, totalEquipment) : null
+  })
 
   useEffect(() => {
     const sub = eventBus.ringBuffer$().subscribe(buffer => {

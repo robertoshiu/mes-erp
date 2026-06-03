@@ -15,7 +15,6 @@ interface FabFloorProps {
 export function FabFloor({ eventBus, masterData }: FabFloorProps) {
   const equipState$ = useMemo(() => eventBus.ofTopic('equip.state'), [eventBus])
   const lotMove$ = useMemo(() => eventBus.ofTopic('lot.move'), [eventBus])
-  const kpiTick$ = useMemo(() => eventBus.ofTopic('kpi.tick'), [eventBus])
   const allEvents$ = useMemo(() => eventBus.all$(), [eventBus])
   // Snapshot the ring buffer at mount so the stream backfills with recent
   // history instead of starting blank when navigating in after the sim has run.
@@ -25,7 +24,7 @@ export function FabFloor({ eventBus, masterData }: FabFloorProps) {
     <div className="flex h-full gap-4 p-4 bg-canvas">
       {/* Main content: KPI strip on top + floor map filling */}
       <div className="flex-1 flex flex-col min-w-0 gap-4">
-        <KpiStrip kpiTick$={kpiTick$} />
+        <KpiStrip eventBus={eventBus} totalEquipment={masterData.equipment.length} />
 
         <Panel className="hud-frame relative flex-1 min-h-0 overflow-hidden">
           <div className="absolute top-3 right-4 z-10 flex items-center gap-2 pointer-events-none">

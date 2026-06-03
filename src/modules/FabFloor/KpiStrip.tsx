@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { Observable } from 'rxjs'
-import type { KpiTickEvent } from '../../lib/events'
+import type { AppEvent, KpiTickEvent } from '../../lib/events'
+import type { EventBus } from '../../lib/eventBus'
+import { computeKpis } from '../../lib/kpi'
 import { MetricTile } from '../../components/ui/MetricTile'
 import { Gauge } from '../../components/ui/Gauge'
 import { chartSeries } from '../../lib/tokens'
 import { Gauge as GaugeIcon, Activity, Boxes, Clock, Layers } from 'lucide-react'
 
 interface KpiStripProps {
-  kpiTick$: Observable<KpiTickEvent>
+  eventBus: EventBus
+  totalEquipment: number
 }
 
 interface TileConfig {
@@ -111,13 +113,22 @@ function GaugeCard({
   )
 }
 
-export function KpiStrip({ kpiTick$ }: KpiStripProps) {
+export function KpiStrip({ eventBus, totalEquipment }: KpiStripProps) {
+  // The MES engine emits a real kpi.tick only once per 180s loop (the t=150 spine
+  // beat), so subscribing to that topic leaves the strip frozen at "—". Recompute
+  // the snapshot from the live ring buffer every event — the same source the KPI
+  // Dashboard uses — and seed from getBuffer() so the strip paints on mount.
   const [kpi, setKpi] = useState<KpiTickEvent | null>(null)
 
   useEffect(() => {
-    const sub = kpiTick$.subscribe(setKpi)
+    const snapshot = (buffer: AppEvent[]) => {
+      const k = computeKpis(buffer, totalEquipment)
+      setKpi({ topic: 'kpi.tick', t: buffer.length ? buffer[buffer.length - 1].t : 0, ...k })
+    }
+    snapshot(eventBus.getBuffer())
+    const sub = eventBus.ringBuffer$().subscribe(snapshot)
     return () => sub.unsubscribe()
-  }, [kpiTick$])
+  }, [eventBus, totalEquipment])
 
   return (
     <div className="flex gap-3 shrink-0">

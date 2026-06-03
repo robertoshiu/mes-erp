@@ -22,7 +22,9 @@ export const SPINE: SpineBeat[] = [
   {
     t: 25, kind: 'beat', name: 'Lot priority insertion',
     events: [
-      { topic: 'lot.move', t: 25, lotId: 'LOT-2622W-HOT01', fromToolId: 'QUEUE', toToolId: 'EQP-LITHO-01', routeStep: 0, operatorId: 'OP-003', productCode: 'DEV-5NM-B2', customerName: 'NovaStar' },
+      // lotId must be a REAL generated lot (LOT-2622W-00001..00200) or the Production
+      // board's one scripted beat is a no-op the table never paints.
+      { topic: 'lot.move', t: 25, lotId: 'LOT-2622W-00001', fromToolId: 'QUEUE', toToolId: 'EQP-LITHO-01', routeStep: 0, operatorId: 'OP-003', productCode: 'DEV-5NM-B2', customerName: 'NovaStar' },
     ],
   },
   {

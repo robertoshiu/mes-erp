@@ -85,7 +85,16 @@ const KIND_LABEL: Record<RowKind, string> = {
 export function DemandPlanningModule({ scmData, eventBus }: ScmModuleProps) {
   // Live forecast overlays: scm.forecast.updated re-plans a material bucket.
   // Keyed `${materialNo}:${bucket}` → latest qty, folded onto the static plan.
-  const [overlays, setOverlays] = useState<Record<string, number>>({})
+  // SEED from the ring buffer on mount (ofTopic/all$ are live-only, no replay) so
+  // re-plans emitted before this screen was opened — and the demand-spike beat —
+  // are reflected immediately instead of dropped (mirrors ControlTower, App badges).
+  const [overlays, setOverlays] = useState<Record<string, number>>(() => {
+    const seed: Record<string, number> = {}
+    for (const e of eventBus.getBuffer()) {
+      if (e.topic === 'scm.forecast.updated') seed[`${e.materialNo}:${e.bucket}`] = e.qty
+    }
+    return seed
+  })
   // The material whose curve drives the chart (defaults to the first FERT).
   const [selectedNo, setSelectedNo] = useState<string | null>(null)
   const [updateCount, setUpdateCount] = useState(0)

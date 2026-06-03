@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Area, AreaChart, ResponsiveContainer, YAxis } from 'recharts'
 import { BadgeCheck, Clock, ShieldCheck, Timer, TruckIcon, AlertTriangle } from 'lucide-react'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
@@ -8,6 +8,7 @@ import { useUiStore } from '../../lib/uiStore'
 import { mulberry32 } from '../../data/prng'
 import { sem } from '../../lib/tokens'
 import { cn } from '../../lib/utils'
+import type { AppEvent } from '../../lib/events'
 import type { ScmModuleProps } from './types'
 import type { SupplierScorecard } from '../../data/scm/types'
 
@@ -42,6 +43,19 @@ function capColorLowerBetter(v: number): string {
 /** A supplier is at-risk when any of its three gauges falls below healthy. */
 function isAtRisk(s: SupplierScorecard): boolean {
   return s.onTimePct < PCT_HEALTHY || s.qualityPct < PCT_HEALTHY || s.avgLeadDays > LEAD_HEALTHY
+}
+
+/** Fold live supplier ASNs (scm.supplier.asn) from the ring buffer onto the seeded
+ *  scorecards: each notice bumps that vendor's Open-ASN count. The buffer is bounded
+ *  (~last 1000 events) so the count rises during a loop and self-heals as old ASNs
+ *  age out — no unbounded growth across loop wraps. */
+function foldAsns(base: SupplierScorecard[], buffer: AppEvent[]): SupplierScorecard[] {
+  const asnByBp = new Map<string, number>()
+  for (const e of buffer) {
+    if (e.topic === 'scm.supplier.asn') asnByBp.set(e.bpNo, (asnByBp.get(e.bpNo) ?? 0) + 1)
+  }
+  if (asnByBp.size === 0) return base
+  return base.map(c => ({ ...c, openAsns: c.openAsns + (asnByBp.get(c.bpNo) ?? 0) }))
 }
 
 /** Deterministic 12-point trend tail for a metric, seeded off the supplier id +
@@ -274,10 +288,23 @@ function ScorecardDetail({ card }: { card: SupplierScorecard }) {
   )
 }
 
-export function SupplierScorecardsModule({ scmData }: ScmModuleProps) {
-  const scorecards = scmData.scorecards
+export function SupplierScorecardsModule({ scmData, eventBus }: ScmModuleProps) {
   const selectEntity = useUiStore(s => s.selectEntity)
   const selectedEntity = useUiStore(s => s.selectedEntity)
+
+  // Live scorecards: seed the Open-ASN counts from the ring buffer on mount, then
+  // re-fold on every scm.supplier.asn so the panel reflects vendor notices as they
+  // arrive instead of freezing on the static seed (mirrors ControlTower).
+  const [scorecards, setScorecards] = useState<SupplierScorecard[]>(
+    () => foldAsns(scmData.scorecards, eventBus.getBuffer()),
+  )
+
+  useEffect(() => {
+    const apply = () => setScorecards(foldAsns(scmData.scorecards, eventBus.getBuffer()))
+    apply()
+    const sub = eventBus.ofTopic('scm.supplier.asn').subscribe(apply)
+    return () => sub.unsubscribe()
+  }, [eventBus, scmData.scorecards])
 
   const selected =
     selectedEntity?.type === 'supplierScorecard'

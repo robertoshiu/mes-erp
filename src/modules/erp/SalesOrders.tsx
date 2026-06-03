@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ShoppingCart, ListOrdered, PackageCheck, AlertTriangle } from 'lucide-react'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
 import { Gauge } from '../../components/ui/Gauge'
@@ -8,7 +8,8 @@ import { useUiStore } from '../../lib/uiStore'
 import type { ModuleRoute } from '../../lib/uiStore'
 import { cyrb53 } from '../../data/prng'
 import { cn } from '../../lib/utils'
-import type { SalesOrder, SalesOrderLine, OrderStatus, ErpData } from '../../data/erp/types'
+import type { SalesOrder, SalesOrderLine, OrderStatus, ErpData, Material } from '../../data/erp/types'
+import type { OrderCreatedEvent } from '../../lib/erpEvents'
 import type { ErpModuleProps } from './types'
 
 /** USD formatter for net values — deterministic, no locale wall-clock surprises. */
@@ -197,6 +198,35 @@ function addDays(iso: string, days: number): string {
   const mm = String(dt.getUTCMonth() + 1).padStart(2, '0')
   const dd = String(dt.getUTCDate()).padStart(2, '0')
   return `${yy}-${mm}-${dd}`
+}
+
+/**
+ * Synthesize a believable SalesOrder from the thin erp.order.created event (which
+ * carries only orderNo/bpNo/customerName/materialNo/qty) so the live order flow
+ * shows up in the table. Deterministic via cyrb53 + a fixed base date — no PRNG,
+ * no wall-clock — so it stays stable across reloads. Scripted rush orders
+ * (SO-RUSH-*) land as super-hot to read as the expedite beat they represent.
+ */
+function makeSalesOrderFromEvent(
+  e: OrderCreatedEvent,
+  matByNo: Map<string, Material>,
+  baseDate: string,
+): SalesOrder {
+  const mat = matByNo.get(e.materialNo)
+  const netPrice = mat ? Math.max(1, Math.round(mat.standardCost * 1.35)) : 1200 + (cyrb53(e.orderNo, 13) % 4000)
+  const requestedDate = addDays(baseDate, 10 + (cyrb53(e.orderNo, 11) % 28))
+  const expedited = e.orderNo.includes('RUSH')
+  return {
+    orderNo: e.orderNo,
+    bpNo: e.bpNo,
+    customerName: e.customerName,
+    orderDate: baseDate,
+    requestedDate,
+    status: 'open',
+    priority: expedited ? 'super-hot' : 'normal',
+    lines: [{ lineNo: 1, materialNo: e.materialNo, description: mat?.description ?? e.materialNo, qty: e.qty, netPrice }],
+    netValue: e.qty * netPrice,
+  }
 }
 
 const ATP_META: Record<AtpStatus, { label: string; dot: string; text: string; chip: string; glow?: string }> = {
@@ -392,20 +422,45 @@ const cols: Column<AtpOrder>[] = [
   },
 ]
 
-export function SalesOrdersModule({ erpData }: ErpModuleProps) {
+export function SalesOrdersModule({ erpData, eventBus }: ErpModuleProps) {
   const selectEntity = useUiStore(s => s.selectEntity)
   const selectedEntity = useUiStore(s => s.selectedEntity)
 
-  const atp = useMemo(() => deriveAtp(erpData), [erpData])
+  const matByNo = useMemo(() => new Map(erpData.materials.map(m => [m.materialNo, m])), [erpData.materials])
+  const baseDate = erpData.salesOrders[0]?.orderDate ?? '2026-01-01'
 
-  // Enrich each order with its derived ATP promise (memoized — pure over the snapshot).
+  // Live order book: the static seed PLUS new orders from the erp.order.created
+  // stream. Seed from the ring buffer on mount (ofTopic is live-only, no replay),
+  // then append live deltas — deduped by orderNo — so the table, header counts,
+  // and ATP panel grow with the order flow instead of freezing on the seed.
+  const [liveOrders, setLiveOrders] = useState<SalesOrder[]>(() => {
+    const seen = new Set(erpData.salesOrders.map(o => o.orderNo))
+    const fromBuf = eventBus.getBuffer()
+      .filter((e): e is OrderCreatedEvent => e.topic === 'erp.order.created')
+      .filter(e => !seen.has(e.orderNo))
+      .map(e => makeSalesOrderFromEvent(e, matByNo, baseDate))
+    return [...fromBuf.reverse(), ...erpData.salesOrders]
+  })
+
+  useEffect(() => {
+    const sub = eventBus.ofTopic('erp.order.created').subscribe(e => {
+      setLiveOrders(prev => prev.some(o => o.orderNo === e.orderNo)
+        ? prev
+        : [makeSalesOrderFromEvent(e, matByNo, baseDate), ...prev])
+    })
+    return () => sub.unsubscribe()
+  }, [eventBus, matByNo, baseDate])
+
+  const atp = useMemo(() => deriveAtp({ ...erpData, salesOrders: liveOrders }), [erpData, liveOrders])
+
+  // Enrich each order with its derived ATP promise (memoized — pure over the list).
   const orders = useMemo<AtpOrder[]>(() => {
     const short = atp.shortfall > 0
-    return erpData.salesOrders.map(o => {
+    return liveOrders.map(o => {
       const atpStatus = atpStatusFor(o, short)
       return { ...o, atpStatus, promisedDate: promisedDateFor(o, atpStatus) }
     })
-  }, [erpData.salesOrders, atp.shortfall])
+  }, [liveOrders, atp.shortfall])
 
   const openCount = orders.filter(o => o.status === 'open').length
   const hotCount = orders.filter(o => o.priority === 'hot' || o.priority === 'super-hot').length

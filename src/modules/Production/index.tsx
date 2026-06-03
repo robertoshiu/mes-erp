@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Boxes, GitBranch, ArrowRight, Layers } from 'lucide-react'
+import { Boxes, GitBranch, ArrowRight, Layers, Radio } from 'lucide-react'
 import { DenseDataTable, type Column } from '../../components/DenseDataTable'
 import { DrillInPanel } from '../../components/DrillInPanel'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
@@ -80,15 +80,32 @@ export function ProductionModule({ eventBus, masterData }: ProductionModuleProps
     for (const lot of masterData.lots) m[lot.lotId] = lot.currentStep
     return m
   })
+  const [moveCount, setMoveCount] = useState(0)
   const selectEntity = useUiStore(s => s.selectEntity)
   const selectedEntity = useUiStore(s => s.selectedEntity)
 
   useEffect(() => {
     const sub = eventBus.ofTopic('lot.move').subscribe(e => {
       setLotSteps(prev => ({ ...prev, [e.lotId]: e.routeStep }))
+      setMoveCount(c => c + 1)
     })
     return () => sub.unsubscribe()
   }, [eventBus])
+
+  // Live, always-visible WIP aggregate so the board reads as live at a glance even
+  // when the moving lot's row is scrolled out of the virtualized table (the per-row
+  // progress bar alone is off-screen most of the time — Equipment has the same need).
+  const avgProgress = useMemo(() => {
+    let sum = 0
+    let n = 0
+    for (const lot of masterData.lots) {
+      if (lot.totalSteps > 0) {
+        sum += Math.min(1, (lotSteps[lot.lotId] ?? lot.currentStep) / lot.totalSteps)
+        n++
+      }
+    }
+    return n > 0 ? (sum / n) * 100 : 0
+  }, [lotSteps, masterData.lots])
 
   const columns: Column<Lot>[] = useMemo(() => [
     { key: 'lotId', header: 'Lot ID', width: 170, mono: true, render: r => r.lotId, sortFn: (a, b) => a.lotId.localeCompare(b.lotId) },
@@ -127,7 +144,17 @@ export function ProductionModule({ eventBus, masterData }: ProductionModuleProps
             subtitle={`${masterData.lots.length.toLocaleString()} lots tracked`}
             icon={<Boxes size={15} strokeWidth={1.9} />}
             right={
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
+                <span
+                  className="flex items-center gap-1.5 text-[10px] text-ink-3"
+                  title="Live WIP progress — advances on every lot move"
+                >
+                  <Radio size={13} strokeWidth={1.9} className="text-accent animate-pulse-soft" />
+                  <span className="font-mono metric-value text-ink-1 tabular-nums">{avgProgress.toFixed(1)}%</span>
+                  <span className="uppercase tracking-[0.12em]">avg WIP</span>
+                  <span className="font-mono text-ink-mute tabular-nums">· {moveCount.toLocaleString()} moves</span>
+                </span>
+                <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1.5 text-[10px] text-ink-3">
                   <span className="w-1.5 h-1.5 rounded-full bg-ink-mute" aria-hidden />
                   Normal
@@ -140,6 +167,7 @@ export function ProductionModule({ eventBus, masterData }: ProductionModuleProps
                   <span className="w-1.5 h-1.5 rounded-full bg-critical animate-pulse-soft" aria-hidden />
                   Super-Hot
                 </span>
+                </div>
               </div>
             }
           />

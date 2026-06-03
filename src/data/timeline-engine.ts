@@ -22,6 +22,9 @@ export function createTimelineEngine(
   let tickInterval: ReturnType<typeof setInterval> | null = null
   let lastBeatIndex = -1
   let bgRng: () => number = seededRng(0, 0)
+  // Per-lot route progress so background lot.move events advance a lot monotonically
+  // along its route instead of jumping to a random absolute step. Reset each loop.
+  const lotProgress = new Map<string, number>()
 
   const { equipment, operators, lots, recipes } = masterData
   const toolIds = equipment.map(e => e.toolId)
@@ -35,10 +38,15 @@ export function createTimelineEngine(
       const fromTool = pick(toolIds, bgRng)
       const toTool = pick(toolIds, bgRng)
       const op = pick(operators, bgRng)
+      // Advance this lot one step along its route, capped at its length — monotonic,
+      // believable progress instead of a random absolute step that can exceed the
+      // route total (which renders "7/5" and a >100% progress bar).
+      const nextStep = Math.min(lot.totalSteps, (lotProgress.get(lot.lotId) ?? lot.currentStep) + 1)
+      lotProgress.set(lot.lotId, nextStep)
       return {
         topic: 'lot.move', t,
         lotId: lot.lotId, fromToolId: fromTool, toToolId: toTool,
-        routeStep: Math.floor(bgRng() * 8),
+        routeStep: nextStep,
         operatorId: op.operatorId, productCode: lot.productCode, customerName: lot.customerName,
       }
     } else if (roll < 0.60) {
@@ -129,6 +137,7 @@ export function createTimelineEngine(
     lastBeatIndex = -1
     bgRng = seededRng(newLoopIndex, 0)
     bgAccumulator = 0
+    lotProgress.clear()
     // Pre-roll for new loop
     const events = generatePreRollEvents(newLoopIndex)
     eventBus.publishBatch(events)

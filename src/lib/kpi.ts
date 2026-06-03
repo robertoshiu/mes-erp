@@ -103,7 +103,11 @@ export function computeKpis(events: AppEvent[], totalEquipment: number): KpiSnap
     yieldPct: blend(quality, BASELINE.yieldPct),
     mtbfMinutes: failures.length > 0 ? computeMTBF(totalUptime, failures.length) : BASELINE.mtbfMinutes,
     mttrMinutes: repairs.length > 0 ? computeMTTR(repairTimeMin, repairs.length) : BASELINE.mttrMinutes,
-    wipTurn: blend(lotMoves.length > 0 ? lotMoves.length / Math.max(windowMin / 60, 0.01) : BASELINE.wipTurn, BASELINE.wipTurn),
+    // WIP turns: a bounded, believable ratio that drifts with recent lot-move
+    // density. The previous `lotMoves / (windowMin/60)` was an unbounded throughput
+    // rate (identical to throughputUnitsPerHour), which rendered as a nonsense
+    // ~950k "lots" once the Fab Floor strip went live (wipTurn × 575).
+    wipTurn: Math.max(2, Math.min(6, BASELINE.wipTurn * (0.8 + (lotMoves.length / Math.max(events.length, 1)) * 1.5))),
     throughputUnitsPerHour: blend(throughputPerHour, BASELINE.throughputUnitsPerHour),
     // AVG_PROCESS_STEPS: approximate number of route steps per lot, used to scale per-move time to full cycle time
     cycleTimeMinutes: blend(lotMoves.length > 0 ? windowMin / Math.max(lotMoves.length, 1) * AVG_PROCESS_STEPS : BASELINE.cycleTimeMinutes, BASELINE.cycleTimeMinutes),
