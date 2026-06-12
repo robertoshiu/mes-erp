@@ -3,6 +3,24 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
+// --- jsdom-on-Node<22.12 shim (component tests only) ---------------------------
+// jsdom@27 → html-encoding-sniffer@6 → @exodus/bytes/encoding-lite.js is ESM-only
+// ("type":"module", no CJS condition), yet jsdom `require()`s it through a CJS
+// chain. On Node <22.12 (this tree runs 22.11) that throws ERR_REQUIRE_ESM the
+// instant any `// @vitest-environment jsdom` test boots jsdom in a worker — which
+// is why the global env stays `node` and only component tests opt into jsdom.
+// `--experimental-require-module` lets require() load that ESM module; it must
+// reach the worker processes, so we seed it into NODE_OPTIONS here (the config is
+// evaluated in the parent vitest process before workers fork, and workers inherit
+// env). Idempotent: only appended when not already present.
+{
+  const FLAG = '--experimental-require-module'
+  const current = process.env.NODE_OPTIONS ?? ''
+  if (!current.includes(FLAG)) {
+    process.env.NODE_OPTIONS = `${current} ${FLAG}`.trim()
+  }
+}
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   base: process.env.GITHUB_ACTIONS ? '/mes-erp/' : './',
@@ -40,5 +58,9 @@ export default defineConfig({
     // For a future React component test, add `// @vitest-environment jsdom`
     // (or happy-dom) at the top of that specific test file.
     environment: 'node',
+    // Setup runs for every test file but is a no-op under the node env — it only
+    // installs DOM polyfills (ResizeObserver) when a real `window` exists, i.e.
+    // under the `// @vitest-environment jsdom` component tests.
+    setupFiles: ['./src/test/setup-dom.ts'],
   },
 })

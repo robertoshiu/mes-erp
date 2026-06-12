@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Radio, Users, Clock as ClockIcon, ChevronRight } from 'lucide-react'
+import { Radio, Users, Clock as ClockIcon, ChevronRight, CircleHelp } from 'lucide-react'
 import type { Clock } from '../lib/clock'
 import { useUiStore } from '../lib/uiStore'
+import { useTourStore } from '../tour/tourStore'
 import { SPINE, type SpineBeat } from '../data/timeline'
 import { cn } from '../lib/utils'
 
@@ -50,6 +51,7 @@ export function TopBar({ clock, operatorCount }: TopBarProps) {
   const [wrapped, setWrapped] = useState(false)
   const prevLoopT = useRef(0)
   const currentShift = useUiStore(s => s.currentShift)
+  const openCenter = useTourStore(s => s.openCenter)
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -93,7 +95,7 @@ export function TopBar({ clock, operatorCount }: TopBarProps) {
       </div>
 
       {/* Center zone — mission clock */}
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center" data-tour="topbar.clock">
         <div className="flex items-center gap-2">
           <ClockIcon size={13} className="text-ink-3" />
           <span className="metric-value text-lg font-semibold text-ink-1 tracking-wider tabular-nums">
@@ -134,10 +136,20 @@ export function TopBar({ clock, operatorCount }: TopBarProps) {
           <Radio size={14} className="animate-pulse-soft" />
           LIVE
         </span>
+        <button
+          type="button"
+          data-tour="topbar.help"
+          onClick={openCenter}
+          title="Tour Center 導覽中心"
+          aria-label="Tour Center 導覽中心"
+          className="w-7 h-7 flex items-center justify-center rounded-md text-accent border border-edge-strong hover:bg-accent/10 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <CircleHelp size={15} />
+        </button>
       </div>
 
       {/* Loop progress rail */}
-      <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-edge/30">
+      <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-edge/30" data-tour="topbar.loop-rail">
         {/* Per-beat tick marks — turns the rail into a timeline a presenter can point at */}
         {PRESENT &&
           BEATS.map(b => (

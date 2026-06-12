@@ -131,7 +131,7 @@ export function KpiStrip({ eventBus, totalEquipment }: KpiStripProps) {
   }, [eventBus, totalEquipment])
 
   return (
-    <div className="flex gap-3 shrink-0">
+    <div className="flex gap-3 shrink-0" data-tour="fab-floor.kpi-strip">
       {TILES.map(tile =>
         tile.gauge ? (
           <div key={tile.label} className="flex-1 min-w-0">

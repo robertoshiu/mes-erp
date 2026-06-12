@@ -3,13 +3,16 @@ import {
   LayoutGrid, Boxes, Cpu, Activity, ClipboardList, AlertTriangle, Gauge as GaugeIcon, Hexagon,
   Network, CalendarRange, ShoppingCart, Factory, Warehouse, Truck, Package, Building2, ListTree, Landmark,
   Radar, Ship, TrendingUp, BadgeCheck,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, BookOpen,
 } from 'lucide-react'
 import { useUiStore, type ModuleRoute, type BadgeCounts } from './lib/uiStore'
 import { GlobalSvgDefs } from './lib/chartTheme'
 import type { E10State } from './lib/events'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { TopBar } from './components/TopBar'
+import { TourController } from './tour/TourController'
+import { TourCenter } from './tour/TourCenter'
+import { WelcomeModal } from './tour/WelcomeModal'
 import { generateMasterData } from './data/master'
 import { generateErpData } from './data/erp'
 import { countShortages } from './data/erp/coverage'
@@ -54,6 +57,7 @@ const ControlTowerModule = lazy(() => import('./modules/scm/ControlTower').then(
 const ShipmentsModule = lazy(() => import('./modules/scm/Shipments').then(m => ({ default: m.ShipmentsModule })))
 const DemandPlanningModule = lazy(() => import('./modules/scm/DemandPlanning').then(m => ({ default: m.DemandPlanningModule })))
 const SupplierScorecardsModule = lazy(() => import('./modules/scm/SupplierScorecards').then(m => ({ default: m.SupplierScorecardsModule })))
+const HandbookModule = lazy(() => import('./modules/Handbook'))
 
 type IconCmp = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
 
@@ -123,6 +127,15 @@ const DOMAINS: NavDomain[] = [
       { group: 'Planning', items: [
         { route: 'demand-planning', label: 'Demand Planning', Icon: TrendingUp },
         { route: 'supplier-scorecards', label: 'Supplier Scorecards', Icon: BadgeCheck },
+      ] },
+    ],
+  },
+  {
+    domain: 'HELP',
+    labelClass: 'text-accent/70',
+    groups: [
+      { group: 'Guidance', items: [
+        { route: 'handbook', label: 'Handbook', Icon: BookOpen },
       ] },
     ],
   },
@@ -425,6 +438,7 @@ export default function App() {
       case 'shipments': return <ShipmentsModule scmData={scmData} eventBus={eventBus} />
       case 'demand-planning': return <DemandPlanningModule scmData={scmData} eventBus={eventBus} />
       case 'supplier-scorecards': return <SupplierScorecardsModule scmData={scmData} eventBus={eventBus} />
+      case 'handbook': return <HandbookModule />
       default: return null
     }
   }
@@ -450,6 +464,7 @@ export default function App() {
       <nav
         className="w-56 shrink-0 flex flex-col bg-surface border-r border-edge relative"
         aria-label="Module navigation"
+        data-tour="nav.sidebar"
       >
         {/* Brand */}
         <div className="flex items-center gap-2.5 px-4 h-14 border-b border-edge">
@@ -468,7 +483,9 @@ export default function App() {
         <div className="flex-1 overflow-y-auto py-2">
           {DOMAINS.map(({ domain, labelClass, groups }) => (
             <div key={domain} className="mb-1.5">
-              <div className={`px-4 pt-2.5 pb-1 text-[9px] font-bold uppercase tracking-[0.26em] ${labelClass}`}>
+              <div
+                className={`px-4 pt-2.5 pb-1 text-[9px] font-bold uppercase tracking-[0.26em] ${labelClass}`}
+              >
                 {domain}
               </div>
               {groups.map(({ group, items }) => {
@@ -550,6 +567,15 @@ export default function App() {
           </ErrorBoundary>
         </main>
       </div>
+
+      {/* Guided tour + handbook layer (sits above DrillInPanel z-50). A crash in
+          the overlay layer must not white-screen the app, so it's isolated in an
+          ErrorBoundary with a null fallback — the tour simply disappears. */}
+      <ErrorBoundary moduleName="Guided Tour" fallback={null}>
+        <TourController eventBus={eventBus} />
+        <TourCenter />
+        <WelcomeModal />
+      </ErrorBoundary>
     </div>
   )
 }

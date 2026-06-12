@@ -152,6 +152,7 @@ export function BusinessPartnersModule({ erpData }: ErpModuleProps) {
       columns={columns}
       rowKey={r => r.bpNo}
       entityType="businessPartner"
+      dataTour="business-partners.table"
       headerRight={headerRight}
       renderDetail={renderDetail}
       detailTitle={r => r.name}

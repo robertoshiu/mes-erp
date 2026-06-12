@@ -92,7 +92,7 @@ export function RecipeModule({ masterData }: RecipeModuleProps) {
   return (
     <div className="flex h-full gap-4 p-4 bg-canvas">
       {/* ───────────────────────── Recipe library ───────────────────────── */}
-      <Panel className="w-72 shrink-0 flex flex-col overflow-hidden">
+      <Panel className="w-72 shrink-0 flex flex-col overflow-hidden" data-tour="recipe.library">
         <PanelHeader
           title="Recipe Library"
           icon={<ScrollText size={15} strokeWidth={1.9} />}

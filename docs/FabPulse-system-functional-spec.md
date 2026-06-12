@@ -1,7 +1,7 @@
 # FabPulse 系統功能說明書
 
 > 半導體晶圓廠 MES → ERP → SCM 三層整合戰情中心（Command Center）
-> 版本：2026-05-29 · 對應分支：`master` · 文件性質：完整系統功能說明書
+> 版本：2026-06-12 · 對應分支：`master` · 文件性質：完整系統功能說明書
 > 本文所有功能、欄位、事件、參數均對照原始碼整理（非示意），檔案路徑以 `src/` 為基準。
 
 ---
@@ -10,8 +10,9 @@
 
 **FabPulse** 是一套高擬真的半導體晶圓廠戰情中心展示系統，將製造執行（MES）、企業資源規劃（ERP）、供應鏈管理（SCM）三層整合於單一深色「Siemens Cyan」指揮中心介面。系統為**純前端（pure front-end）**，無後端、無資料庫、無網路請求——所有資料由種子化亂數（seeded PRNG）決定性產生，所有「即時動態」由一個 180 秒的決定性模擬迴圈驅動。
 
-- **規模**：21 個功能模組（MES 7 + ERP 10 + SCM 4），外加 ATP 併入 ERP 銷售訂單。
+- **規模**：21 個功能模組（MES 7 + ERP 10 + SCM 4），外加 ATP 併入 ERP 銷售訂單；另有 **Handbook 說明手冊頁**（Help 域，`src/modules/Handbook/`）。
 - **核心特色**：三個互不關聯的模擬引擎共用一條 RxJS 事件匯流排與一個時鐘，串成一條完整的「採購單 → 進貨在途 → 收貨 / 生產投單 → 完工 → 出貨在途 → 交貨結案」端到端故事。
+- **導覽系統**：雙語（繁中 / EN）42 步自動導覽、Tour Center、Operations Handbook、新訪客歡迎提示（`src/tour/`）。
 - **定位**：展示 / Demo（非生產系統）。SECS/GEM 訊息、GL 分錄、ATP 等皆為外觀擬真，無真實傳輸。
 - **限制**：桌機專用，視窗寬度需 ≥ 1280px；單一深色主題，無淺色模式。
 
@@ -120,8 +121,8 @@ SCM **向外延伸而非重複** ERP：進貨在途引用 ERP 採購單、出貨
 ### 2.8 App 啟動與外殼（`src/App.tsx`）
 
 - **啟動順序（訂閱先於發送，關鍵）**：`engine.preRoll() → erpEngine.preRoll() → scmEngine.preRoll() → clock.start()` → `bridge.start()` 與 `scmDriver.start()`（先訂閱 ERP 主題）**先於** `engine.start() → erpEngine.start() → scmEngine.start()`，確保第一筆 `erp.po.created` / `lot.complete` 不被漏接。清理時反序停止。
-- **路由與程式碼分割**：21 個模組全部 `React.lazy` 拆 chunk，包在 `<Suspense fallback={ModuleSkeleton}>` 與每路由 keyed `<ErrorBoundary>` 內。
-- **三域側邊欄**：`DOMAINS`（MES / ERP / SCM）各含可摺疊群組；MES/ERP 群組標籤染青色 `text-accent/70`，SCM 染靛色 `text-accent-3/70`；作用中項目有青色發光左條 + 漸層高亮（導覽 affordance 全 app 維持青色）。
+- **路由與程式碼分割**：22 個模組（21 功能模組 + Handbook）全部 `React.lazy` 拆 chunk，包在 `<Suspense fallback={ModuleSkeleton}>` 與每路由 keyed `<ErrorBoundary>` 內；導覽系統元件（`TourController`、`TourCenter`、`WelcomeModal`）同樣以 `React.lazy` 拆分。
+- **四域側邊欄**：`DOMAINS`（MES / ERP / SCM / HELP）各含可摺疊群組；MES/ERP/HELP 群組標籤染青色 `text-accent/70`，SCM 染靛色 `text-accent-3/70`；作用中項目有青色發光左條 + 漸層高亮（導覽 affordance 全 app 維持青色）。
 - **徽章（badge）**：三個 effect——(1) 由種子資料靜態算出 ERP 徽章（shortages / openOrders / latePOs）；(2) 1s 節流的 MES 徽章（alarms / production / equipmentDown）；(3) 1s 節流的 SCM 徽章（inTransit / lateShipments via `shipmentPosition` / disruptions）。`badgeClass` 語意上色：alarms/shortages/disruptions 紅色脈動、equipmentDown/latePOs/lateShipments 琥珀、計數 青色。
 - `shift.boundary` → `uiStore.setShift`；視窗 < 1280px 顯示桌機門檻卡片。
 
@@ -435,11 +436,13 @@ src/
 ├─ modules/
 │  ├─ FabFloor, Production, Equipment, SPC, Recipe, Alarms, KPI   (MES)
 │  ├─ erp/  Cockpit, Materials, BusinessPartners, Bom, SalesOrders, Mrp, ProductionOrders, Inventory, Procurement, Finance
-│  └─ scm/  ControlTower, Shipments, DemandPlanning, SupplierScorecards
+│  ├─ scm/  ControlTower, Shipments, DemandPlanning, SupplierScorecards
+│  └─ Handbook/                    雙語說明手冊頁（Help 域；`src/modules/Handbook/`）
+├─ tour/                           導覽系統（TourController, TourCenter, WelcomeModal, tourStore, handbook-content, tours/）
 └─ components/                     共用元件（DenseDataTable, MasterDataModule, DrillInPanel, EventStream, TopBar, ErrorBoundary, ui/*）
 ```
 
 設計與規格文件：`docs/plans/2026-05-29-fabpulse-erp-extension.md`、`docs/plans/2026-05-29-fabpulse-scm-extension.md`。
 
 ---
-*本說明書依 2026-05-29 之 `master`（含 SCM 層 commit `5d4b628`）原始碼整理。*
+*本說明書依 2026-06-12 之 `master`（含導覽系統與 Handbook，v1.0.0.0）原始碼整理。*

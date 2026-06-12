@@ -290,6 +290,7 @@ export function ProductionOrdersModule({ erpData, eventBus: _eventBus }: ErpModu
       columns={columns}
       rowKey={(r) => r.orderNo}
       entityType="prodOrder"
+      dataTour="production-orders.table"
       headerRight={headerRight}
       renderDetail={renderDetail}
       detailTitle={(r) => r.orderNo}

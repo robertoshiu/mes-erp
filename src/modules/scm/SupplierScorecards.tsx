@@ -373,7 +373,7 @@ export function SupplierScorecardsModule({ scmData, eventBus }: ScmModuleProps) 
           </div>
         ) : (
           <div className="flex-1 min-h-0 overflow-y-auto p-4">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" data-tour="supplier-scorecards.grid">
               {scorecards.map(card => (
                 <ScorecardCard
                   key={card.bpNo}

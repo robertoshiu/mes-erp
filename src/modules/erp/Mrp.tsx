@@ -109,7 +109,7 @@ export function MrpModule({ erpData, eventBus: _eventBus }: ErpModuleProps) {
   return (
     <div className="flex h-full">
       <div className="flex-1 p-4 min-w-0">
-        <Panel className="flex flex-col h-full overflow-hidden">
+        <Panel className="flex flex-col h-full overflow-hidden" data-tour="mrp.matrix">
           <PanelHeader
             title="MRP · Material Coverage"
             subtitle={`${coverage.length.toLocaleString()} materials · ${BUCKET_COUNT}-bucket projection`}

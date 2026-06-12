@@ -197,7 +197,7 @@ export function FinanceModule({ erpData, eventBus }: ErpModuleProps) {
         </Panel>
 
         {/* Live GL postings ledger */}
-        <Panel className="flex min-h-0 flex-col overflow-hidden">
+        <Panel className="flex min-h-0 flex-col overflow-hidden" data-tour="finance.ledger">
           <PanelHeader
             title="GL Postings · Live"
             subtitle="Document line items"
