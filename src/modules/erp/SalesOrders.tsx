@@ -288,7 +288,7 @@ function AtpAvailabilityPanel({ atp }: { atp: AtpSupply }) {
   const gaugeColor = short ? '#F43F5E' : coverage >= 99 ? '#34D399' : '#FBBF24'
 
   return (
-    <div className="px-3.5 py-3 border-b border-edge bg-surface-3/30">
+    <div className="px-3.5 py-3 border-b border-edge bg-surface-3/30" data-tour="sales-orders.atp">
       <div className="flex items-start gap-5">
         {/* Segmented availability bar + legend */}
         <div className="flex-1 min-w-0">

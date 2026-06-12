@@ -262,7 +262,7 @@ export function DemandPlanningModule({ scmData, eventBus }: ScmModuleProps) {
       </div>
 
       {/* Forecast vs actual — dual-axis composed chart for the active material */}
-      <Panel className="shrink-0 flex flex-col">
+      <Panel className="shrink-0 flex flex-col" data-tour="demand-planning.chart">
         <PanelHeader
           title={`Demand Plan · ${activeNo ?? '—'}`}
           subtitle="Forecast vs. realized actuals across the planning horizon"

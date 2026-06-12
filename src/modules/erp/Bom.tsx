@@ -149,7 +149,7 @@ export function BomModule({ erpData }: ErpModuleProps) {
 
       {/* Right: BOM tree */}
       <div className="flex-1 p-4 pl-2 min-w-0">
-        <Panel className="flex flex-col h-full overflow-hidden">
+        <Panel className="flex flex-col h-full overflow-hidden" data-tour="bom.tree">
           {!selected ? (
             <>
               <PanelHeader title="Structure" icon={<GitBranch size={15} strokeWidth={1.9} />} />

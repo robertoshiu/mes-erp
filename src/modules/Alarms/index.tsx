@@ -176,7 +176,7 @@ export function AlarmsModule({ eventBus, clock }: AlarmsModuleProps) {
         </Panel>
 
         {/* Alarm rows */}
-        <Panel className="overflow-hidden">
+        <Panel className="overflow-hidden" data-tour="alarms.feed">
           {alarms.length === 0 ? (
             <div className="flex items-center gap-2.5 px-3.5 py-8 text-ink-3">
               <Radio size={15} strokeWidth={1.9} className="text-accent animate-pulse-soft" />

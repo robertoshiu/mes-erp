@@ -155,6 +155,7 @@ export function ProcurementModule({ erpData }: ErpModuleProps) {
       columns={columns}
       rowKey={r => r.poNo}
       entityType="purchaseOrder"
+      dataTour="procurement.table"
       headerRight={headerRight}
       renderDetail={renderDetail}
       detailTitle={r => r.poNo}

@@ -25,6 +25,8 @@ export type ModuleRoute =
   | 'shipments'
   | 'demand-planning'
   | 'supplier-scorecards'
+  // Help
+  | 'handbook'
 
 export interface SelectedEntity {
   type:

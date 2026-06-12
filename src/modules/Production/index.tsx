@@ -163,7 +163,7 @@ export function ProductionModule({ eventBus, masterData }: ProductionModuleProps
   return (
     <div className="flex h-full">
       <div className="flex-1 p-4 min-w-0">
-        <Panel className="flex flex-col h-full overflow-hidden">
+        <Panel className="flex flex-col h-full overflow-hidden" data-tour="production.lot-table">
           <PanelHeader
             title="Production · WIP"
             subtitle={`${masterData.lots.length.toLocaleString()} lots tracked`}

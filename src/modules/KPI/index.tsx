@@ -182,7 +182,7 @@ export function KpiDashboard({ eventBus, totalEquipment }: KpiDashboardProps) {
       </div>
 
       {/* HERO ROW: OEE + Yield gauges */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-tour="kpi.hero">
         <HeroGaugeCard
           title="OEE"
           value={currentKpi ? oeeValue * 100 : 0}

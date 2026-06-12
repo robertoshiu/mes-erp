@@ -123,6 +123,7 @@ export function InventoryModule({ erpData }: ErpModuleProps) {
       columns={columns}
       rowKey={r => `${r.materialNo}·${r.storageLoc}`}
       entityType="material"
+      dataTour="inventory.table"
       headerRight={headerRight}
       filterKeys={['materialNo', 'description', 'plant', 'storageLoc']}
       filterPlaceholder="Filter lots..."

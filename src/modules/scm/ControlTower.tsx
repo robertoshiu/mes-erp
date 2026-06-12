@@ -492,7 +492,7 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
 
       {/* The hero map — fixed-viewBox SVG in an overflow-hidden Panel so it
           intrinsically clips (mirrors FabFloor/index + BayLayout). */}
-      <Panel className="hud-frame relative flex-1 min-h-0 overflow-hidden">
+      <Panel className="hud-frame relative flex-1 min-h-0 overflow-hidden" data-tour="control-tower.network">
         <div className="pointer-events-none absolute top-3 right-4 z-10 flex items-center gap-2">
           <span className="text-[10px] font-mono uppercase tracking-[0.22em] text-ink-3">
             SUPPLY NETWORK · CONTROL TOWER

@@ -227,7 +227,7 @@ function ShipmentsTable({
   return (
     <div className="flex h-full">
       <div className="min-w-0 flex-1 p-4">
-        <Panel className="flex h-full flex-col overflow-hidden">
+        <Panel className="flex h-full flex-col overflow-hidden" data-tour="shipments.table">
           <PanelHeader
             title="Shipments / In-Transit"
             subtitle={subtitle}

@@ -489,7 +489,7 @@ export function CockpitModule({ erpData, eventBus }: ErpModuleProps) {
       </Panel>
 
       {/* Six swim lanes — flex row, each lane flex-1 min-w-0 with internal scroll. */}
-      <div className="flex min-h-0 flex-1 gap-3">
+      <div className="flex min-h-0 flex-1 gap-3" data-tour="erp-cockpit.swimlane">
         {LANES.map(meta => (
           <Lane
             key={meta.key}

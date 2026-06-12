@@ -21,6 +21,8 @@ export interface MasterDataModuleProps<T> {
   filterKeys?: (keyof T)[]
   /** Placeholder for the filter input (only shown when `filterKeys` is set). */
   filterPlaceholder?: string
+  /** Optional `data-tour` value placed on the table Panel (guided-tour target). */
+  dataTour?: string
 }
 
 /**
@@ -43,6 +45,7 @@ export function MasterDataModule<T>({
   detailSubtitle,
   filterKeys,
   filterPlaceholder,
+  dataTour,
 }: MasterDataModuleProps<T>): React.JSX.Element {
   const selectEntity = useUiStore(s => s.selectEntity)
   const selectedEntity = useUiStore(s => s.selectedEntity)
@@ -81,7 +84,7 @@ export function MasterDataModule<T>({
   return (
     <div className="flex h-full">
       <div className="flex-1 p-4 min-w-0">
-        <Panel className="flex flex-col h-full overflow-hidden">
+        <Panel className="flex flex-col h-full overflow-hidden" data-tour={dataTour}>
           <PanelHeader
             title={title}
             subtitle={subtitle}

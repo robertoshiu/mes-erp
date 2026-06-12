@@ -31,7 +31,7 @@ function StateDistribution({ states, total }: { states: Record<string, E10State>
   const present = STATE_ORDER.filter(s => (counts[s] ?? 0) > 0)
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-3" data-tour="equipment.state-dist">
       <div className="flex h-1.5 w-40 overflow-hidden rounded-full bg-surface-3/60">
         {present.map(s => {
           const pct = total > 0 ? ((counts[s] ?? 0) / total) * 100 : 0
@@ -178,7 +178,7 @@ export function EquipmentModule({ eventBus, masterData }: EquipmentModuleProps) 
           />
         </Panel>
 
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0" data-tour="equipment.roster">
           <DenseDataTable
             data={masterData.equipment}
             columns={columns}

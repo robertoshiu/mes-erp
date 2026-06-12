@@ -155,7 +155,7 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
   return (
     <div className="flex flex-col h-full gap-4 p-4 overflow-y-auto">
       {/* Summary stat row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0" data-tour="spc.stats">
         <StatTile
           label="Current CD"
           value={current != null ? current.toFixed(2) : '—'}
@@ -190,7 +190,7 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
       </div>
 
       {/* Control Chart */}
-      <Panel className="flex-1 min-h-[280px] flex flex-col">
+      <Panel className="flex-1 min-h-[280px] flex flex-col" data-tour="spc.control-chart">
         <PanelHeader
           title="SPC Control Chart · CD Uniformity (nm)"
           icon={<Activity size={15} strokeWidth={1.9} />}

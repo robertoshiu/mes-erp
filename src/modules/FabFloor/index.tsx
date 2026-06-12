@@ -26,7 +26,7 @@ export function FabFloor({ eventBus, masterData }: FabFloorProps) {
       <div className="flex-1 flex flex-col min-w-0 gap-4">
         <KpiStrip eventBus={eventBus} totalEquipment={masterData.equipment.length} />
 
-        <Panel className="hud-frame relative flex-1 min-h-0 overflow-hidden">
+        <Panel className="hud-frame relative flex-1 min-h-0 overflow-hidden" data-tour="fab-floor.bay-map">
           <div className="absolute top-3 right-4 z-10 flex items-center gap-2 pointer-events-none">
             <span className="text-[10px] font-mono uppercase tracking-[0.22em] text-ink-3">
               FAB-01 · BAY MAP

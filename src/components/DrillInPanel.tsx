@@ -49,6 +49,7 @@ export function DrillInPanel({ children, title, subtitle, overlay = false }: Dri
       role="dialog"
       aria-modal="true"
       aria-labelledby="drillin-title"
+      data-tour="drillin.panel"
       initial={{ x: 36, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.22, ease: [0, 0, 0.2, 1] }}
