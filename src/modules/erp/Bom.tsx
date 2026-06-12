@@ -1,9 +1,19 @@
 import { useMemo, useState } from 'react'
-import { ListTree, GitBranch, Package, Boxes, ChevronRight, Search } from 'lucide-react'
+import { ListTree, GitBranch, Package, Boxes, ChevronRight, Search, Coins } from 'lucide-react'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
+import { ModuleHeader } from '../../components/ui/ModuleHeader'
+import { AnimatedNumber } from '../../components/ui/AnimatedNumber'
+import { Heatbar } from '../../components/ui/Heatbar'
+import { DonutSpark, type DonutSegment } from '../../components/ui/DonutSpark'
+import { chartSeries } from '../../lib/tokens'
 import { cn } from '../../lib/utils'
 import type { ErpModuleProps } from './types'
 import type { Bom, Material } from '../../data/erp/types'
+import { rollupBomCost, indexBomsByHeader, type ComponentCost } from './bomCost'
+
+/** Compact USD formatter for the cost roll-up viz. */
+const usd = (n: number) =>
+  '$' + Math.round(n).toLocaleString('en-US')
 
 /** Small type chip for a material (FERT / HALB / ROH), color-coded. */
 function TypeChip({ type }: { type: Material['type'] }) {
@@ -70,14 +80,60 @@ export function BomModule({ erpData }: ErpModuleProps) {
 
   const headerMaterial = selected ? materialByNo.get(selected.headerMaterialNo) ?? null : null
 
+  // Header-material → Bom index drives the recursive cost roll-up (multi-level).
+  const bomByHeader = useMemo(() => indexBomsByHeader(boms), [boms])
+
+  // Roll up the selected structure's cost from its components (pure helper).
+  const rollup = useMemo(
+    () => (selected ? rollupBomCost(selected, bomByHeader, materialByNo) : null),
+    [selected, bomByHeader, materialByNo],
+  )
+  const maxExtended = useMemo(
+    () => (rollup ? rollup.components.reduce((m, c) => Math.max(m, c.extended), 1) : 1),
+    [rollup],
+  )
+  // Cost-share donut segments (top components + an "other" bucket).
+  const costDonut = useMemo(() => {
+    if (!rollup || rollup.total <= 0) return []
+    const sorted = [...rollup.components].sort((a, b) => b.extended - a.extended)
+    const top = sorted.slice(0, 5)
+    const otherVal = sorted.slice(5).reduce((s, c) => s + c.extended, 0)
+    const segs: DonutSegment[] = top.map((c, i) => ({
+      value: c.extended,
+      color: chartSeries[i % chartSeries.length],
+      label: c.materialNo,
+    }))
+    if (otherVal > 0) segs.push({ value: otherVal, color: '#4C5A74', label: 'Other' })
+    return segs
+  }, [rollup])
+
   return (
-    <div className="flex h-full">
+    <div className="relative flex flex-col h-full overflow-hidden">
+      <div className="bg-bloom" aria-hidden />
+      <div className="relative z-[1] px-4 pt-4 animate-rise" style={{ animationDelay: '0ms' }}>
+        <ModuleHeader
+          title="Bill of Materials"
+          subtitle={`${boms.length.toLocaleString()} structures · multi-level component trees`}
+          domain="ERP"
+          icon={<ListTree size={13} strokeWidth={2} />}
+          pills={[
+            { label: 'Structures', value: <AnimatedNumber value={boms.length} />, tone: 'info' },
+            ...(selected
+              ? [
+                  { label: 'Components', value: <AnimatedNumber value={selected.components.length} />, tone: 'accent' as const },
+                  { label: 'Roll-Up', value: <AnimatedNumber value={rollup?.total ?? 0} format={usd} />, tone: 'success' as const },
+                ]
+              : []),
+          ]}
+        />
+      </div>
+    <div className="relative z-[1] flex flex-1 min-h-0">
       {/* Left: BOM list */}
       <div className="w-72 shrink-0 p-4 pr-2 min-w-0">
         <Panel className="flex flex-col h-full overflow-hidden">
           <PanelHeader
-            title="Bill of Materials"
-            subtitle={`${boms.length.toLocaleString()} structures`}
+            title="Structures"
+            subtitle={`${boms.length.toLocaleString()} BOMs`}
             icon={<ListTree size={15} strokeWidth={1.9} />}
           />
 
@@ -213,43 +269,90 @@ export function BomModule({ erpData }: ErpModuleProps) {
                       selected.components.map((c, i) => {
                         const mat = materialByNo.get(c.materialNo)
                         const last = i === selected.components.length - 1
+                        const cost: ComponentCost | undefined = rollup?.components[i]
                         return (
                           <div
                             key={`${c.materialNo}-${i}`}
-                            className="group relative flex items-center gap-2 py-2 pl-3 pr-3 border-b border-edge last:border-b-0 hover:bg-surface-3/50 transition-colors"
+                            className="group relative flex items-stretch gap-2 py-2 pl-3 pr-3 border-b border-edge last:border-b-0 hover:bg-surface-3/50 transition-colors"
                           >
-                            {/* Tree rail: vertical + elbow connector */}
+                            {/* Tree rail: glowing vertical + elbow connector */}
                             <span className="relative shrink-0 w-6 self-stretch" aria-hidden>
                               <span
                                 className={cn(
-                                  'absolute left-2.5 top-0 w-px bg-edge-strong',
+                                  'absolute left-2.5 top-0 w-px',
                                   last ? 'h-1/2' : 'h-full',
                                 )}
+                                style={{ background: 'linear-gradient(180deg, rgba(56,189,248,0.45), rgba(56,189,248,0.18))' }}
                               />
-                              <span className="absolute left-2.5 top-1/2 w-2.5 h-px bg-edge-strong" />
-                              <span className="absolute left-[18px] top-1/2 -translate-y-1/2 w-1 h-1 rounded-full bg-accent-2" />
+                              <span
+                                className="absolute left-2.5 top-1/2 w-2.5 h-px"
+                                style={{ background: 'rgba(56,189,248,0.4)' }}
+                              />
+                              <span
+                                className="absolute left-[18px] top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-accent-2"
+                                style={{ boxShadow: '0 0 5px rgba(56,189,248,0.7)' }}
+                              />
                             </span>
-                            <div className="min-w-0 flex-1 flex items-baseline gap-2">
-                              <span className="font-mono text-[11px] text-ink-1 shrink-0">{c.materialNo}</span>
-                              <span className="text-[11px] text-ink-2 truncate">{c.description}</span>
+                            <div className="min-w-0 flex-1 flex flex-col gap-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-[11px] text-ink-1 shrink-0">{c.materialNo}</span>
+                                <span className="text-[11px] text-ink-2 truncate flex-1 min-w-0">{c.description}</span>
+                                {mat && <TypeChip type={mat.type} />}
+                                <span className="flex items-center gap-1 font-mono text-[11px] tabular-nums text-ink-2 shrink-0">
+                                  <ChevronRight
+                                    size={11}
+                                    strokeWidth={1.9}
+                                    className="text-ink-mute opacity-0 group-hover:opacity-100 transition-opacity"
+                                    aria-hidden
+                                  />
+                                  {c.qty}
+                                  <span className="text-ink-3 uppercase text-[10px]">{c.uom}</span>
+                                </span>
+                              </div>
+                              {/* Per-node cost roll-up Heatbar */}
+                              {cost && cost.extended > 0 && (
+                                <div className="flex items-center gap-2">
+                                  <Heatbar value={cost.extended} max={maxExtended} tone="accent" className="flex-1" />
+                                  <span className="font-mono tabular-nums text-[10px] text-ink-3 shrink-0 w-[64px] text-right">
+                                    {usd(cost.extended)}
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                            {mat && <TypeChip type={mat.type} />}
-                            <span className="flex items-center gap-1 font-mono text-[11px] tabular-nums text-ink-2 shrink-0">
-                              <ChevronRight
-                                size={11}
-                                strokeWidth={1.9}
-                                className="text-ink-mute opacity-0 group-hover:opacity-100 transition-opacity"
-                                aria-hidden
-                              />
-                              {c.qty}
-                              <span className="text-ink-3 uppercase text-[10px]">{c.uom}</span>
-                            </span>
                           </div>
                         )
                       })
                     )}
                   </div>
                 </div>
+
+                {/* Cost roll-up — recursive helper, component-cost donut + total */}
+                {rollup && rollup.total > 0 && (
+                  <div>
+                    <SectionTitle icon={<Coins size={13} strokeWidth={1.9} />} text="Cost Roll-Up" />
+                    <div className="mt-2.5 rounded-md border border-edge bg-surface-2/40 p-3 flex items-center gap-4">
+                      <DonutSpark
+                        segments={costDonut}
+                        size={92}
+                        centerValue={<span className="text-[11px]">{usd(rollup.total)}</span>}
+                        centerLabel="total"
+                      />
+                      <div className="min-w-0 flex-1 flex flex-col gap-1.5">
+                        {costDonut.map((seg, i) => (
+                          <div key={i} className="flex items-center gap-2 text-[11px]">
+                            <span
+                              className="w-2 h-2 rounded-[2px] shrink-0"
+                              style={{ background: seg.color, boxShadow: `0 0 6px ${seg.color}` }}
+                              aria-hidden
+                            />
+                            <span className="font-mono text-ink-2 truncate flex-1 min-w-0">{seg.label}</span>
+                            <span className="font-mono tabular-nums text-ink-1 shrink-0">{usd(seg.value)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* BOM meta */}
                 <div className="grid grid-cols-2 gap-x-3 gap-y-3 text-xs pt-1">
@@ -279,6 +382,7 @@ export function BomModule({ erpData }: ErpModuleProps) {
           )}
         </Panel>
       </div>
+    </div>
     </div>
   )
 }

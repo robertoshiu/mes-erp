@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts'
 import {
   Network,
   ShieldCheck,
@@ -6,9 +7,13 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   PackageSearch,
+  TrendingDown,
   X,
 } from 'lucide-react'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
+import { ModuleHeader } from '../../components/ui/ModuleHeader'
+import { AnimatedNumber } from '../../components/ui/AnimatedNumber'
+import { ChartDefs, ChartTooltip } from '../../lib/chartTheme'
 import { cn } from '../../lib/utils'
 import { useUiStore } from '../../lib/uiStore'
 import type { ErpModuleProps } from './types'
@@ -17,6 +22,7 @@ import type {
   PurchaseOrder,
 } from '../../data/erp/types'
 import { BUCKET_COUNT, BUCKETS, buildCoverage } from '../../data/erp/coverage'
+import { buildMatrix, shortageProjection } from './mrpMatrix'
 
 /** Compact integer formatter for the dense numeric cells. */
 function fmt(n: number): string {
@@ -86,6 +92,18 @@ export function MrpModule({ erpData, eventBus: _eventBus }: ErpModuleProps) {
     [coverage],
   )
 
+  // Hero heatmap matrix — top-N materials × buckets, deterministic from coverage.
+  const matrix = useMemo(() => buildMatrix(coverage, 12), [coverage])
+  // Aggregate shortage-projection strip for the AreaChart.
+  const projection = useMemo(
+    () => shortageProjection(coverage, BUCKETS),
+    [coverage],
+  )
+  const peakShort = useMemo(
+    () => projection.reduce((m, p) => Math.max(m, p.shortfall), 0),
+    [projection],
+  )
+
   const selected = useMemo(
     () => coverage.find(r => r.materialNo === selectedNo) ?? null,
     [coverage, selectedNo],
@@ -108,10 +126,43 @@ export function MrpModule({ erpData, eventBus: _eventBus }: ErpModuleProps) {
 
   return (
     <div className="flex h-full">
-      <div className="flex-1 p-4 min-w-0">
-        <Panel className="flex flex-col h-full overflow-hidden" data-tour="mrp.matrix">
+      <div className="relative flex-1 min-w-0 flex flex-col p-4 gap-3 overflow-hidden">
+        <div className="bg-bloom" aria-hidden />
+
+        <div className="relative z-[1] animate-rise" style={{ animationDelay: '0ms' }}>
+          <ModuleHeader
+            title="Material Requirements Planning"
+            subtitle={`${coverage.length.toLocaleString()} materials · ${BUCKET_COUNT}-bucket coverage projection`}
+            domain="ERP"
+            icon={<Network size={13} strokeWidth={2} />}
+            pills={[
+              { label: 'Materials', value: <AnimatedNumber value={coverage.length} />, tone: 'info' },
+              {
+                label: 'Shortages',
+                value: <AnimatedNumber value={shortageCount} />,
+                tone: shortageCount > 0 ? 'critical' : 'success',
+              },
+              {
+                label: 'Peak Short',
+                value: <AnimatedNumber value={peakShort} />,
+                tone: peakShort > 0 ? 'warn' : 'success',
+              },
+            ]}
+          />
+        </div>
+
+        {coverage.length > 0 && (
+          <CoverageHero
+            matrix={matrix}
+            projection={projection}
+            selectedNo={selectedNo}
+            onSelect={no => selectEntity({ type: 'material', id: no })}
+          />
+        )}
+
+        <Panel className="relative z-[1] flex flex-col flex-1 min-h-0 overflow-hidden animate-rise" style={{ animationDelay: '120ms' }} data-tour="mrp.matrix">
           <PanelHeader
-            title="MRP · Material Coverage"
+            title="Coverage Matrix"
             subtitle={`${coverage.length.toLocaleString()} materials · ${BUCKET_COUNT}-bucket projection`}
             icon={<Network size={15} strokeWidth={1.9} />}
             right={
@@ -419,6 +470,156 @@ export function MrpModule({ erpData, eventBus: _eventBus }: ErpModuleProps) {
           </div>
         </aside>
       )}
+    </div>
+  )
+}
+
+/* ===========================================================================
+   Hero coverage heatmap matrix + shortage-projection strip. Additive viz fed by
+   the same deterministic coverage data the table uses; clicking a cell reuses
+   the existing material row-selection. Kept ≤ ~190px tall to preserve density.
+   =========================================================================== */
+
+import type { MatrixRow, ShortagePoint } from './mrpMatrix'
+
+/** Map a 0..1 coverage intensity to a heatmap fill (critical→warn→success). */
+function cellColor(intensity: number, breach: boolean): string {
+  if (breach) return 'rgba(244, 63, 94, 0.85)' // critical
+  // Blend warn(amber)→success(emerald) across the covered band.
+  if (intensity >= 0.66) return `rgba(52, 211, 153, ${0.32 + intensity * 0.5})`
+  if (intensity >= 0.33) return `rgba(251, 191, 36, ${0.34 + intensity * 0.45})`
+  return `rgba(251, 113, 133, ${0.45 + (1 - intensity) * 0.35})`
+}
+
+function CoverageHero({
+  matrix,
+  projection,
+  selectedNo,
+  onSelect,
+}: {
+  matrix: MatrixRow[]
+  projection: ShortagePoint[]
+  selectedNo: string | null
+  onSelect: (materialNo: string) => void
+}) {
+  const labelW = 150
+  return (
+    <div
+      className="relative z-[1] grid gap-3 animate-rise"
+      style={{ gridTemplateColumns: 'minmax(0, 2.1fr) minmax(220px, 1fr)', animationDelay: '60ms' }}
+    >
+      {/* Heatmap matrix */}
+      <Panel className="overflow-hidden">
+        <PanelHeader
+          title="Coverage Heatmap"
+          subtitle={`Top ${matrix.length} at-risk materials · projected on-hand by bucket`}
+          icon={<Network size={14} strokeWidth={1.9} />}
+          right={
+            <span className="hidden lg:flex items-center gap-2 text-[9px] uppercase tracking-[0.12em] text-ink-3">
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2 h-2 rounded-[2px]" style={{ background: cellColor(1, false) }} aria-hidden />
+                covered
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2 h-2 rounded-[2px]" style={{ background: cellColor(0.5, false) }} aria-hidden />
+                tight
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2 h-2 rounded-[2px]" style={{ background: cellColor(0, true) }} aria-hidden />
+                breach
+              </span>
+            </span>
+          }
+        />
+        <div className="p-2.5">
+          {/* Bucket axis labels */}
+          <div className="flex items-center mb-1" style={{ paddingLeft: labelW }}>
+            {BUCKETS.map(b => (
+              <div key={b} className="flex-1 text-center text-[9px] font-semibold uppercase tracking-[0.12em] text-ink-3">
+                {b}
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-col gap-[3px]">
+            {matrix.map((row, ri) => {
+              const isSel = row.materialNo === selectedNo
+              return (
+                <button
+                  key={row.materialNo}
+                  onClick={() => onSelect(row.materialNo)}
+                  className={cn(
+                    'group flex items-center gap-1.5 rounded-sm transition-colors text-left',
+                    isSel ? 'bg-accent/10 ring-1 ring-accent/50' : 'hover:bg-surface-3/50',
+                  )}
+                  title={`${row.materialNo} — ${row.description}`}
+                >
+                  <span
+                    className="shrink-0 truncate font-mono text-[10px] text-ink-2 group-hover:text-ink-1 pl-1.5"
+                    style={{ width: labelW }}
+                  >
+                    {row.materialNo}
+                  </span>
+                  <span className="flex flex-1 gap-[3px] py-[3px] pr-1.5">
+                    {row.cells.map((cell, ci) => (
+                      <span
+                        key={ci}
+                        className="flex-1 h-[18px] rounded-[3px] relative"
+                        style={{
+                          background: cellColor(cell.intensity, cell.breach),
+                          boxShadow: cell.breach
+                            ? '0 0 8px -1px rgba(244, 63, 94, 0.7), inset 0 0 0 1px rgba(244, 63, 94, 0.4)'
+                            : `inset 0 0 0 1px rgba(255,255,255,0.05)`,
+                          animationDelay: `${(ri * 5 + ci) * 12}ms`,
+                        }}
+                        title={`${BUCKETS[ci]}: ${Math.round(cell.projected).toLocaleString()}${cell.breach ? ' · breach' : ''}`}
+                      />
+                    ))}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </Panel>
+
+      {/* Shortage-projection AreaChart strip */}
+      <Panel className="overflow-hidden flex flex-col">
+        <PanelHeader
+          title="Shortage Projection"
+          subtitle="Aggregate units short by bucket"
+          icon={<TrendingDown size={14} strokeWidth={1.9} />}
+        />
+        <div className="flex-1 min-h-0 px-2 pt-2 pb-1" style={{ minHeight: 96 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={projection} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
+              <ChartDefs />
+              <YAxis hide domain={[0, 'dataMax']} />
+              <Tooltip
+                content={<ChartTooltip unit=" units short" />}
+                cursor={{ stroke: 'rgba(244,63,94,0.4)' }}
+              />
+              <Area
+                type="monotone"
+                dataKey="shortfall"
+                name="Short"
+                stroke="#F43F5E"
+                strokeWidth={2}
+                fill="url(#fpArea5)"
+                filter="url(#fpGlow)"
+                dot={false}
+                isAnimationActive={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="flex items-center justify-between px-3 pb-2 text-[10px] text-ink-3">
+          {projection.map(p => (
+            <span key={p.bucket} className="font-mono tabular-nums">
+              {p.bucket}
+            </span>
+          ))}
+        </div>
+      </Panel>
     </div>
   )
 }
