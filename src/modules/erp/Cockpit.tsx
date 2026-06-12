@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer } from 'react'
+import { Fragment, useEffect, useMemo, useReducer } from 'react'
 import {
   Radio,
   ShoppingCart,
@@ -8,14 +8,18 @@ import {
   PackageCheck,
   ReceiptText,
   ArrowRight,
+  Workflow,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
+import { ModuleHeader } from '../../components/ui/ModuleHeader'
+import { AnimatedNumber } from '../../components/ui/AnimatedNumber'
 import { useBridgedLots } from '../../lib/useBridgedLots'
 import { useUiStore } from '../../lib/uiStore'
 import type { ModuleRoute, SelectedEntity } from '../../lib/uiStore'
 import { cn } from '../../lib/utils'
 import type { ErpModuleProps } from './types'
+import { pushSpark, emptySpark, sparkPoints } from './laneSpark'
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Document-Flow Cockpit — the hero.
@@ -47,6 +51,8 @@ interface LaneState {
   count: number
   /** Newest-first, capped at MAX_CHIPS. */
   chips: LaneChip[]
+  /** Fixed-width activity history (oldest→newest) feeding the lane sparkline. */
+  spark: number[]
 }
 
 type LaneKey = 'so' | 'planned' | 'prod' | 'lot' | 'gr' | 'invoice'
@@ -63,19 +69,32 @@ type CockpitState = Record<LaneKey, LaneState>
 let chipSeq = 0
 
 function emptyLane(seed = 0): LaneState {
-  return { count: seed, chips: [] }
+  return { count: seed, chips: [], spark: emptySpark() }
 }
 
 function reducer(state: CockpitState, action: LaneAction): CockpitState {
   const lane = state[action.lane]
   if (action.kind === 'bumpOnly') {
-    return { ...state, [action.lane]: { ...lane, count: lane.count + action.by } }
+    return {
+      ...state,
+      [action.lane]: {
+        ...lane,
+        count: lane.count + action.by,
+        spark: pushSpark(lane.spark, action.by),
+      },
+    }
   }
   const chip: LaneChip = { seq: ++chipSeq, id: action.id, sub: action.sub, tone: action.tone }
   const chips = [chip, ...lane.chips].slice(0, MAX_CHIPS)
+  const bump = action.bump ?? 1
   return {
     ...state,
-    [action.lane]: { count: lane.count + (action.bump ?? 1), chips },
+    [action.lane]: {
+      count: lane.count + bump,
+      chips,
+      // Activity sparkline tracks every event surge, even count-neutral re-surfaces.
+      spark: pushSpark(lane.spark, Math.max(1, bump)),
+    },
   }
 }
 
@@ -105,6 +124,16 @@ const TONE: Record<LaneTone, { text: string; bg: string; glow: string }> = {
   info: { text: 'text-info', bg: 'bg-info', glow: 'rgba(96, 165, 250, 0.6)' },
   success: { text: 'text-success', bg: 'bg-success', glow: 'rgba(52, 211, 153, 0.6)' },
   warn: { text: 'text-warn', bg: 'bg-warn', glow: 'rgba(251, 191, 36, 0.6)' },
+}
+
+/** Solid hex per tone for SVG strokes / gradient connectors (mirrors TONE). */
+const TONE_HEX: Record<LaneTone, { color: string; glow: string }> = {
+  accent: { color: '#22D3EE', glow: 'rgba(34, 211, 238, 0.6)' },
+  'accent-2': { color: '#38BDF8', glow: 'rgba(56, 189, 248, 0.6)' },
+  'accent-3': { color: '#818CF8', glow: 'rgba(129, 140, 248, 0.6)' },
+  info: { color: '#60A5FA', glow: 'rgba(96, 165, 250, 0.6)' },
+  success: { color: '#34D399', glow: 'rgba(52, 211, 153, 0.6)' },
+  warn: { color: '#FBBF24', glow: 'rgba(251, 191, 36, 0.6)' },
 }
 
 /* ── Subcomponents ──────────────────────────────────────────────────────── */
@@ -233,6 +262,64 @@ const EMPTY_LINES: Record<LaneKey, string> = {
   invoice: 'No invoices billed. Revenue posts on completion.',
 }
 
+/** Tiny pure-SVG activity sparkline for a lane header (last-N event buckets).
+ *  Glow stroke + soft area fill, toned to the lane. Flat baseline when idle. */
+function LaneSparkline({ history, tone }: { history: number[]; tone: LaneTone }) {
+  const { color, glow } = TONE_HEX[tone]
+  const w = 56
+  const h = 16
+  const line = sparkPoints(history, w, h, 1.5)
+  const area = line ? `${line} ${w - 1.5},${h - 1.5} 1.5,${h - 1.5}` : ''
+  const idle = history.every(v => v === 0)
+  return (
+    <svg
+      width={w}
+      height={h}
+      viewBox={`0 0 ${w} ${h}`}
+      className="shrink-0"
+      aria-hidden
+      preserveAspectRatio="none"
+    >
+      {!idle && area && <polygon points={area} fill={glow} opacity={0.18} />}
+      {line && (
+        <polyline
+          points={line}
+          fill="none"
+          stroke={idle ? 'rgba(116,132,158,0.5)' : color}
+          strokeWidth={1.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          style={idle ? undefined : { filter: `drop-shadow(0 0 3px ${glow})` }}
+        />
+      )}
+    </svg>
+  )
+}
+
+/** Animated gradient flow connector drawn between adjacent lanes — a thin
+ *  shimmering hairline with an arrow node, purely decorative. */
+function FlowConnector({ from, to }: { from: LaneTone; to: LaneTone }) {
+  const a = TONE_HEX[from].color
+  const b = TONE_HEX[to].color
+  return (
+    <div
+      className="pointer-events-none relative hidden w-3 shrink-0 self-center md:flex md:items-center md:justify-center"
+      aria-hidden
+    >
+      <div
+        className="animate-shimmer h-px w-full"
+        style={{ background: `linear-gradient(90deg, ${a}, ${b})` }}
+      />
+      <ArrowRight
+        size={11}
+        strokeWidth={2.2}
+        className="absolute"
+        style={{ color: b, filter: `drop-shadow(0 0 4px ${TONE_HEX[to].glow})` }}
+      />
+    </div>
+  )
+}
+
 /* ── Lane column ────────────────────────────────────────────────────────── */
 
 function Lane({
@@ -255,16 +342,19 @@ function Lane({
         title={meta.title}
         icon={meta.icon}
         right={
-          <span
-            className={cn(
-              'flex min-w-[2.25rem] items-center justify-center rounded-md border border-edge bg-surface-3/60 px-1.5 py-0.5 font-mono text-[11px] tabular-nums',
-              tone.text,
-            )}
-            style={{ textShadow: `0 0 8px ${tone.glow}` }}
-            title={`${state.count} total`}
-          >
-            {state.count}
-          </span>
+          <div className="flex items-center gap-2">
+            <LaneSparkline history={state.spark} tone={meta.tone} />
+            <span
+              className={cn(
+                'flex min-w-[2.25rem] items-center justify-center rounded-md border border-edge bg-surface-3/60 px-1.5 py-0.5 font-mono text-[11px] tabular-nums',
+                tone.text,
+              )}
+              style={{ textShadow: `0 0 8px ${tone.glow}` }}
+              title={`${state.count} total`}
+            >
+              <AnimatedNumber value={state.count} />
+            </span>
+          </div>
         }
       />
       <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
@@ -452,13 +542,17 @@ export function CockpitModule({ erpData, eventBus }: ErpModuleProps) {
   const totalDocs = LANES.reduce((sum, l) => sum + state[l.key].count, 0)
 
   return (
-    <div className="flex h-full flex-col gap-3 p-4">
-      {/* Hero title bar */}
-      <Panel>
-        <PanelHeader
+    <div className="relative flex h-full flex-col gap-3 p-4">
+      <div className="bg-bloom" aria-hidden />
+      <div className="bg-bloom-2" aria-hidden />
+
+      <div className="relative z-[1] flex h-full min-h-0 flex-col gap-3">
+        {/* Command strip — folds the old hero title bar into ModuleHeader. */}
+        <ModuleHeader
+          domain="ERP"
+          icon={<Workflow size={13} strokeWidth={2} />}
           title="Document Flow · Live"
           subtitle="Order-to-cash pipeline — counts are the overview, chips are the motion"
-          icon={<Radio size={15} strokeWidth={1.9} className="animate-pulse-soft" />}
           right={
             <div className="flex items-center gap-4">
               {/* Stage rail: lane labels chained with arrows. */}
@@ -480,25 +574,36 @@ export function CockpitModule({ erpData, eventBus }: ErpModuleProps) {
                 ))}
               </div>
               <span className="flex items-center gap-1.5 text-[11px] text-ink-3">
-                <span className="font-mono metric-value text-ink-1 tabular-nums">{totalDocs}</span>
+                <span className="font-mono metric-value text-ink-1 tabular-nums">
+                  <AnimatedNumber value={totalDocs} />
+                </span>
                 <span className="uppercase tracking-[0.12em]">docs</span>
               </span>
             </div>
           }
         />
-      </Panel>
 
-      {/* Six swim lanes — flex row, each lane flex-1 min-w-0 with internal scroll. */}
-      <div className="flex min-h-0 flex-1 gap-3" data-tour="erp-cockpit.swimlane">
-        {LANES.map(meta => (
-          <Lane
-            key={meta.key}
-            meta={meta}
-            state={state[meta.key]}
-            bridgedLots={meta.key === 'lot' ? lotViews : undefined}
-            navigateTo={navigateTo}
-          />
-        ))}
+        {/* Six swim lanes — flex row, each lane flex-1 min-w-0 with internal scroll.
+            Adjacent lanes are joined by an animated gradient flow connector. */}
+        <div
+          className="animate-rise flex min-h-0 flex-1 gap-1.5"
+          style={{ animationDelay: '60ms' }}
+          data-tour="erp-cockpit.swimlane"
+        >
+          {LANES.map((meta, i) => (
+            <Fragment key={meta.key}>
+              <Lane
+                meta={meta}
+                state={state[meta.key]}
+                bridgedLots={meta.key === 'lot' ? lotViews : undefined}
+                navigateTo={navigateTo}
+              />
+              {i < LANES.length - 1 && (
+                <FlowConnector from={meta.tone} to={LANES[i + 1].tone} />
+              )}
+            </Fragment>
+          ))}
+        </div>
       </div>
     </div>
   )
