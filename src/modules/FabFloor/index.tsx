@@ -1,9 +1,11 @@
 import { useMemo } from 'react'
-import { Radio } from 'lucide-react'
+import { Radio, Factory } from 'lucide-react'
 import { BayLayout } from './BayLayout'
 import { KpiStrip } from './KpiStrip'
 import { EventStream } from '../../components/EventStream'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
+import { ModuleHeader } from '../../components/ui/ModuleHeader'
+import { TickerTape } from '../../components/ui/TickerTape'
 import type { EventBus } from '../../lib/eventBus'
 import type { MasterData } from '../../data/master'
 
@@ -21,10 +23,39 @@ export function FabFloor({ eventBus, masterData }: FabFloorProps) {
   const seedEvents = useMemo(() => eventBus.getBuffer(), [eventBus])
 
   return (
-    <div className="flex h-full gap-4 p-4 bg-canvas">
-      {/* Main content: KPI strip on top + floor map filling */}
+    <div className="flex h-full gap-4 p-4 bg-canvas bg-bloom">
+      {/* Main content: command header + KPI strip + throughput ticker, floor map filling */}
       <div className="flex-1 flex flex-col min-w-0 gap-4">
+        <ModuleHeader
+          title="Fab Floor"
+          subtitle="FAB-01 · live process command center"
+          domain="MES"
+          icon={<Factory size={13} strokeWidth={2} />}
+          pills={[{ label: 'Tools', value: masterData.equipment.length, tone: 'accent' }]}
+          right={
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.14em] text-success">
+              <span
+                className="w-1.5 h-1.5 rounded-full animate-pulse-soft"
+                style={{ background: '#34D399', boxShadow: '0 0 8px rgba(52,211,153,0.7)' }}
+                aria-hidden
+              />
+              Live
+            </span>
+          }
+        />
+
         <KpiStrip eventBus={eventBus} totalEquipment={masterData.equipment.length} />
+
+        {/* Thin throughput ticker — lot moves + completions sliding through. */}
+        <Panel className="shrink-0 px-2 py-1 flex items-center gap-3">
+          <span className="shrink-0 inline-flex items-center gap-1.5 pl-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-ink-3">
+            <Radio size={11} strokeWidth={2} className="text-accent animate-pulse-soft" />
+            Throughput
+          </span>
+          <div className="min-w-0 flex-1">
+            <TickerTape source$={allEvents$} accept={['lot.move', 'lot.complete']} max={28} />
+          </div>
+        </Panel>
 
         <Panel className="hud-frame relative flex-1 min-h-0 overflow-hidden" data-tour="fab-floor.bay-map">
           <div className="absolute top-3 right-4 z-10 flex items-center gap-2 pointer-events-none">

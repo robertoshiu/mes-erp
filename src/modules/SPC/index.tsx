@@ -1,11 +1,26 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Area, AreaChart, XAxis, YAxis, ReferenceLine, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts'
-import { Activity, Radio, ScrollText, AlertTriangle, Sigma, Target } from 'lucide-react'
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  Cell,
+  XAxis,
+  YAxis,
+  ReferenceArea,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts'
+import { Activity, Radio, ScrollText, AlertTriangle, Sigma, Target, BarChart3 } from 'lucide-react'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
+import { SparkRing } from '../../components/ui/SparkRing'
 import { CHART, ChartDefs, ChartTooltip } from '../../lib/chartTheme'
 import { chartSeries } from '../../lib/tokens'
 import { cn } from '../../lib/utils'
+import { binValues } from './histogram'
 import type { EventBus } from '../../lib/eventBus'
 import type { SpcViolationEvent } from '../../lib/events'
 
@@ -32,6 +47,20 @@ const SPEC_LSL = 44.0
 
 const ACCENT = chartSeries[0] // cyan
 const VIOLATION = '#FB7185' // rose
+
+// Control-limit sigma for the WE rules: σ = (UCL − CL)/3. The shaded zones tint
+// each ±σ band, deepening toward the limits (zone C calm cyan → zone A warning rose).
+const SIGMA = (UCL - CENTERLINE) / 3
+const SIGMA_ZONES: { y1: number; y2: number; fill: string; opacity: number }[] = [
+  // Zone C: CL ± 1σ (in-control, calm)
+  { y1: CENTERLINE - SIGMA, y2: CENTERLINE + SIGMA, fill: ACCENT, opacity: 0.05 },
+  // Zone B: 1σ → 2σ on each side (caution amber)
+  { y1: CENTERLINE + SIGMA, y2: CENTERLINE + 2 * SIGMA, fill: '#FBBF24', opacity: 0.05 },
+  { y1: CENTERLINE - 2 * SIGMA, y2: CENTERLINE - SIGMA, fill: '#FBBF24', opacity: 0.05 },
+  // Zone A: 2σ → 3σ on each side (alert rose, approaching the control limit)
+  { y1: CENTERLINE + 2 * SIGMA, y2: UCL, fill: VIOLATION, opacity: 0.08 },
+  { y1: LCL, y2: CENTERLINE - 2 * SIGMA, fill: VIOLATION, opacity: 0.08 },
+]
 
 /** Human-readable Western Electric rule descriptions (engine emits rules 1, 2, 4). */
 const RULE_LABELS: Record<1 | 2 | 4, string> = {
@@ -65,15 +94,22 @@ interface StatTileProps {
   glow?: boolean
   icon?: ReactNode
   sub?: string
+  /** Optional capability ring (e.g. Cp/Cpk vs a 2.0 ceiling). */
+  ring?: { value: number; max: number; color: string }
 }
 
 /** Compact stat readout used in the SPC summary row. */
-function StatTile({ label, value, unit, accent = '#E8EEF7', glow, icon, sub }: StatTileProps) {
+function StatTile({ label, value, unit, accent = '#E8EEF7', glow, icon, sub, ring }: StatTileProps) {
   return (
     <Panel className="px-3.5 py-3 flex flex-col gap-1.5">
       <div className="flex items-center gap-1.5">
         {icon && <span className="text-ink-3 flex items-center">{icon}</span>}
         <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-3">{label}</span>
+        {ring && (
+          <span className="ml-auto flex items-center">
+            <SparkRing value={ring.value} max={ring.max} size={24} tone="auto" />
+          </span>
+        )}
       </div>
       <div className="flex items-end gap-1">
         <span
@@ -152,6 +188,23 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
     return { cp, cpk, mean, sigma }
   }, [points])
 
+  // Distribution histogram over the last N control points, binned across the
+  // chart Y-domain [40, 60] so the X-axis stays stable as samples stream in.
+  const histogram = useMemo(() => {
+    const values = points.slice(-50).map(p => p.value)
+    return binValues(values, 40, 60, 20).map(b => ({
+      ...b,
+      // Color each bar by where its center sits relative to spec / control limits.
+      color:
+        b.center > SPEC_USL || b.center < SPEC_LSL
+          ? VIOLATION
+          : b.center > UCL || b.center < LCL
+          ? '#FBBF24'
+          : ACCENT,
+    }))
+  }, [points])
+  const histTotal = histogram.reduce((acc, b) => acc + b.count, 0)
+
   return (
     <div className="flex flex-col h-full gap-4 p-4 overflow-y-auto">
       {/* Summary stat row */}
@@ -178,6 +231,7 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
           glow={capability != null}
           sub={capability ? 'sigma ' + capability.sigma.toFixed(2) + ' nm' : undefined}
           icon={<Sigma size={13} strokeWidth={1.9} />}
+          ring={capability ? { value: capability.cp, max: 2, color: capColor(capability.cp) } : undefined}
         />
         <StatTile
           label="Cpk"
@@ -186,6 +240,7 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
           glow={capability != null}
           sub="spec 44-56 nm"
           icon={<Target size={13} strokeWidth={1.9} />}
+          ring={capability ? { value: capability.cpk, max: 2, color: capColor(capability.cpk) } : undefined}
         />
       </div>
 
@@ -209,6 +264,19 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
               <XAxis dataKey="index" stroke={CHART.axis} tick={CHART.tick} />
               <YAxis domain={[40, 60]} stroke={CHART.axis} tick={CHART.tick} />
               <Tooltip content={<ChartTooltip unit=" nm" />} />
+              {/* Western-Electric sigma zones (±1σ/2σ/3σ around CL, σ=(UCL−CL)/3):
+                  tinted ReferenceAreas grow more rose toward the control limits. */}
+              {SIGMA_ZONES.map((z, i) => (
+                <ReferenceArea
+                  key={`sz-${i}`}
+                  y1={z.y1}
+                  y2={z.y2}
+                  fill={z.fill}
+                  fillOpacity={z.opacity}
+                  stroke="none"
+                  ifOverflow="hidden"
+                />
+              ))}
               <ReferenceLine
                 y={UCL}
                 stroke={VIOLATION}
@@ -254,6 +322,66 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
                 Control points stream in as the line runs.
               </div>
             </div>
+          )}
+        </div>
+      </Panel>
+
+      {/* Distribution histogram — last 50 control points binned across the spec
+          window, bars toned by spec/control-limit membership + USL/LSL shading. */}
+      <Panel className="shrink-0 flex flex-col min-h-[200px]">
+        <PanelHeader
+          title="CD Distribution · last 50 samples"
+          icon={<BarChart3 size={15} strokeWidth={1.9} />}
+          right={
+            <span className="inline-flex items-center gap-3 text-[10px] font-mono tabular-nums text-ink-3">
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2 h-2 rounded-sm" style={{ background: ACCENT }} aria-hidden />
+                in-spec
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2 h-2 rounded-sm" style={{ background: VIOLATION }} aria-hidden />
+                out-of-spec
+              </span>
+              <span>n={histTotal}</span>
+            </span>
+          }
+        />
+        <div className="relative flex-1 p-3.5 min-h-0">
+          {histTotal === 0 ? (
+            <div className="flex items-center justify-center h-[150px] text-[11px] text-ink-3 font-mono">
+              Awaiting samples…
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%" minHeight={150}>
+              <BarChart data={histogram} margin={{ top: 8, right: 24, bottom: 4, left: 4 }}>
+                <ChartDefs />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} />
+                <XAxis
+                  dataKey="center"
+                  type="number"
+                  domain={[40, 60]}
+                  stroke={CHART.axis}
+                  tick={CHART.tick}
+                  tickFormatter={(v: number) => v.toFixed(0)}
+                />
+                <YAxis allowDecimals={false} stroke={CHART.axis} tick={CHART.tick} width={28} />
+                <Tooltip
+                  cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                  content={<ChartTooltip labelFormatter={(l) => `${Number(l).toFixed(1)} nm`} />}
+                />
+                {/* Out-of-spec shading bands behind the bars. */}
+                <ReferenceArea x1={40} x2={SPEC_LSL} fill={VIOLATION} fillOpacity={0.07} stroke="none" />
+                <ReferenceArea x1={SPEC_USL} x2={60} fill={VIOLATION} fillOpacity={0.07} stroke="none" />
+                <ReferenceLine x={LCL} stroke={VIOLATION} strokeDasharray="6 3" label={{ value: 'LCL', fill: VIOLATION, fontSize: 9, position: 'top' }} />
+                <ReferenceLine x={UCL} stroke={VIOLATION} strokeDasharray="6 3" label={{ value: 'UCL', fill: VIOLATION, fontSize: 9, position: 'top' }} />
+                <ReferenceLine x={CENTERLINE} stroke={ACCENT} strokeDasharray="4 4" />
+                <Bar dataKey="count" isAnimationActive={false} radius={[2, 2, 0, 0]}>
+                  {histogram.map((b, i) => (
+                    <Cell key={i} fill={b.color} fillOpacity={0.85} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           )}
         </div>
       </Panel>
