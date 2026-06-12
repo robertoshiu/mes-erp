@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Cpu, ScrollText, Radio } from 'lucide-react'
+import { Cpu, ScrollText, Radio, LayoutGrid, Gauge } from 'lucide-react'
 import { DenseDataTable, type Column } from '../../components/DenseDataTable'
 import { DrillInPanel } from '../../components/DrillInPanel'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
+import { ModuleHeader } from '../../components/ui/ModuleHeader'
+import { AnimatedNumber } from '../../components/ui/AnimatedNumber'
+import { Heatbar } from '../../components/ui/Heatbar'
+import { RankBar } from '../../components/ui/RankBar'
 import { StatusDot } from '../../components/ui/StatusDot'
 import { useUiStore } from '../../lib/uiStore'
 import type { EventBus } from '../../lib/eventBus'
@@ -11,6 +15,8 @@ import type { Equipment } from '../../data/master/equipment'
 import type { E10State } from '../../lib/events'
 import { e10Colors, e10Glow, e10Labels } from '../../lib/tokens'
 import { formatE10Transition, formatRecipeLoad } from '../../lib/secs'
+import { syntheticUptime, rankByUptime } from './uptime'
+import { buildStateHistory } from './stateHistory'
 
 interface EquipmentModuleProps {
   eventBus: EventBus
@@ -53,6 +59,113 @@ function StateDistribution({ states, total }: { states: Record<string, E10State>
           </span>
         ))}
       </div>
+    </div>
+  )
+}
+
+/** Hero bay×tool fab-floor mosaic — one pure-SVG tile per tool, E10-state colored
+ *  and live-updated from the same states map. Clicking a tile selects that row. */
+function FabFloorMosaic({
+  equipment,
+  states,
+  selectedId,
+  onSelect,
+}: {
+  equipment: Equipment[]
+  states: Record<string, E10State>
+  selectedId: string | null
+  onSelect: (toolId: string) => void
+}) {
+  // Group by bay, ordered by bayIndex, then slotInBay — the physical floor layout.
+  const bays = useMemo(() => {
+    const map = new Map<string, Equipment[]>()
+    for (const eq of equipment) {
+      const arr = map.get(eq.bay) ?? []
+      arr.push(eq)
+      map.set(eq.bay, arr)
+    }
+    const ordered = [...map.entries()].sort(
+      (a, b) => (a[1][0]?.bayIndex ?? 0) - (b[1][0]?.bayIndex ?? 0),
+    )
+    for (const [, arr] of ordered) arr.sort((a, b) => a.slotInBay - b.slotInBay)
+    return ordered
+  }, [equipment])
+
+  return (
+    <div className="flex flex-wrap gap-x-4 gap-y-2.5">
+      {bays.map(([bay, tools]) => (
+        <div key={bay} className="min-w-0">
+          <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-ink-3 mb-1">
+            {bay}
+          </div>
+          <div className="flex gap-1">
+            {tools.map(eq => {
+              const state = states[eq.toolId] ?? 'NSC'
+              const color = e10Colors[state]
+              const glow = e10Glow[state]
+              const selected = eq.toolId === selectedId
+              const live = state === 'SDT' || state === 'UDT'
+              return (
+                <button
+                  key={eq.toolId}
+                  type="button"
+                  onClick={() => onSelect(eq.toolId)}
+                  title={`${eq.toolId} · ${e10Labels[state]}`}
+                  aria-label={`${eq.toolId} ${e10Labels[state]}`}
+                  className="group relative rounded-[3px] transition-transform duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent hover:-translate-y-0.5"
+                  style={{ lineHeight: 0 }}
+                >
+                  <svg width={16} height={16} className={live ? 'animate-pulse-soft' : undefined}>
+                    <rect
+                      x={1}
+                      y={1}
+                      width={14}
+                      height={14}
+                      rx={2.5}
+                      fill={color}
+                      opacity={selected ? 1 : 0.82}
+                      style={{ filter: glow !== 'rgba(0,0,0,0)' ? `drop-shadow(0 0 3px ${glow})` : undefined }}
+                    />
+                    {selected && (
+                      <rect
+                        x={0.5}
+                        y={0.5}
+                        width={15}
+                        height={15}
+                        rx={3}
+                        fill="none"
+                        stroke="#E8EEF7"
+                        strokeWidth={1.2}
+                      />
+                    )}
+                  </svg>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Deterministic 24h E10 state band (stacked horizontal color segments). */
+function StateStrip({ toolId, currentState }: { toolId: string; currentState: E10State }) {
+  const band = useMemo(() => buildStateHistory(toolId, currentState), [toolId, currentState])
+  return (
+    <div className="flex h-3 w-full overflow-hidden rounded-full" role="img" aria-label="24-hour state history">
+      {band.map((seg, i) => (
+        <span
+          key={i}
+          className="h-full"
+          style={{
+            width: `${seg.frac * 100}%`,
+            background: e10Colors[seg.state],
+            boxShadow: e10Glow[seg.state] !== 'rgba(0,0,0,0)' ? `inset 0 0 4px ${e10Glow[seg.state]}` : undefined,
+          }}
+          title={e10Labels[seg.state]}
+        />
+      ))}
     </div>
   )
 }
@@ -150,6 +263,20 @@ export function EquipmentModule({ eventBus, masterData }: EquipmentModuleProps) 
         return <StatusDot state={state} showCode pulse={state === 'SDT' || state === 'UDT'} />
       },
     },
+    {
+      key: 'uptime', header: 'Uptime', width: 130,
+      render: r => {
+        const up = syntheticUptime(r.toolId, states[r.toolId] || 'NSC')
+        return (
+          <div className="flex items-center gap-2">
+            <Heatbar value={up} max={100} tone="auto" className="flex-1" />
+            <span className="metric-value text-[10px] text-ink-2 tabular-nums shrink-0 w-9 text-right">
+              {up.toFixed(0)}%
+            </span>
+          </div>
+        )
+      },
+    },
   ], [states])
 
   const selectedTool = selectedEntity?.type === 'equipment'
@@ -158,27 +285,109 @@ export function EquipmentModule({ eventBus, masterData }: EquipmentModuleProps) 
 
   const toolCount = masterData.equipment.length
 
+  // Synthetic uptime ranking — top + bottom 5 tools for the RankBar pair, plus the
+  // productive-count headline. Recomputes only when the live states map changes.
+  const ranked = useMemo(
+    () => rankByUptime(masterData.equipment, states),
+    [masterData.equipment, states],
+  )
+  const topTools = useMemo(
+    () => ranked.slice(0, 5).map(t => ({ label: t.toolId, value: t.uptime, hint: '%' })),
+    [ranked],
+  )
+  const bottomTools = useMemo(
+    () => ranked.slice(-5).reverse().map(t => ({ label: t.toolId, value: t.uptime, hint: '%' })),
+    [ranked],
+  )
+  const prodCount = useMemo(
+    () => Object.values(states).filter(s => s === 'PROD').length,
+    [states],
+  )
+  const selUptime = selectedTool
+    ? syntheticUptime(selectedTool.toolId, states[selectedTool.toolId] || 'NSC')
+    : 0
+
   return (
     <div className="flex h-full">
-      <div className="flex-1 flex flex-col gap-3 p-4 min-w-0">
-        <Panel>
-          <PanelHeader
-            title="Equipment · E10 State"
-            icon={<Cpu size={15} strokeWidth={1.9} />}
-            right={
-              <div className="flex items-center gap-4">
-                <StateDistribution states={states} total={toolCount} />
-                <span className="flex items-center gap-1.5 text-[11px] text-ink-3">
-                  <Radio size={13} strokeWidth={1.9} className="text-accent animate-pulse-soft" />
-                  <span className="font-mono metric-value text-ink-1">{toolCount}</span>
-                  <span className="uppercase tracking-[0.12em]">tools</span>
-                </span>
-              </div>
-            }
-          />
-        </Panel>
+      <div className="relative flex-1 flex flex-col gap-3 p-4 min-w-0 overflow-hidden">
+        <div className="bg-bloom" aria-hidden />
 
-        <div className="flex-1 min-h-0" data-tour="equipment.roster">
+        <ModuleHeader
+          domain="MES"
+          icon={<Cpu size={13} strokeWidth={2} />}
+          title="Equipment · E10 State"
+          subtitle="live fab-floor status"
+          pills={[
+            { label: 'Tools', value: <AnimatedNumber value={toolCount} />, tone: 'accent' },
+            { label: 'Productive', value: <AnimatedNumber value={prodCount} />, tone: 'success' },
+          ]}
+          right={
+            <div className="hidden lg:flex items-center gap-4">
+              <StateDistribution states={states} total={toolCount} />
+              <span className="flex items-center gap-1.5 text-[11px] text-ink-3">
+                <Radio size={13} strokeWidth={1.9} className="text-accent animate-pulse-soft" />
+                <span className="uppercase tracking-[0.12em]">live</span>
+              </span>
+            </div>
+          }
+        />
+
+        {/* Hero: bay×tool mosaic + OEE/uptime rank pair */}
+        <div className="grid grid-cols-[1fr_auto] gap-3 shrink-0">
+          <Panel className="relative overflow-hidden animate-rise" style={{ animationDelay: '90ms' }}>
+            <PanelHeader
+              title="Fab Floor"
+              subtitle="bay × tool · E10 state"
+              icon={<LayoutGrid size={14} strokeWidth={1.9} />}
+            />
+            <div className="px-3 py-3 max-h-[148px] overflow-y-auto">
+              <FabFloorMosaic
+                equipment={masterData.equipment}
+                states={states}
+                selectedId={selectedEntity?.type === 'equipment' ? selectedEntity.id : null}
+                onSelect={toolId => {
+                  selectEntity({ type: 'equipment', id: toolId })
+                  setSecsLog([])
+                }}
+              />
+            </div>
+          </Panel>
+
+          <Panel className="relative w-[300px] overflow-hidden animate-rise" style={{ animationDelay: '140ms' }}>
+            <PanelHeader
+              title="Uptime Leaders & Laggards"
+              icon={<Gauge size={14} strokeWidth={1.9} />}
+            />
+            <div className="px-2.5 py-2.5 grid grid-cols-2 gap-x-3 max-h-[148px] overflow-y-auto">
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-success mb-1.5 px-1">Top</div>
+                <RankBar
+                  items={topTools}
+                  max={100}
+                  tone="success"
+                  formatValue={n => n.toFixed(0)}
+                  onSelect={item => { selectEntity({ type: 'equipment', id: item.label }); setSecsLog([]) }}
+                />
+              </div>
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-critical mb-1.5 px-1">Bottom</div>
+                <RankBar
+                  items={bottomTools}
+                  max={100}
+                  tone="critical"
+                  formatValue={n => n.toFixed(0)}
+                  onSelect={item => { selectEntity({ type: 'equipment', id: item.label }); setSecsLog([]) }}
+                />
+              </div>
+            </div>
+          </Panel>
+        </div>
+
+        <Panel
+          className="relative flex-1 min-h-0 overflow-hidden animate-rise"
+          style={{ animationDelay: '190ms' }}
+          data-tour="equipment.roster"
+        >
           <DenseDataTable
             data={masterData.equipment}
             columns={columns}
@@ -189,7 +398,7 @@ export function EquipmentModule({ eventBus, masterData }: EquipmentModuleProps) 
               setSecsLog([])
             }}
           />
-        </div>
+        </Panel>
       </div>
 
       {selectedTool && (
@@ -220,7 +429,27 @@ export function EquipmentModule({ eventBus, masterData }: EquipmentModuleProps) 
                     {e10Labels[states[selectedTool.toolId] || 'NSC']}
                   </div>
                 </div>
+                <div className="ml-auto text-right">
+                  <div className="text-[10px] uppercase tracking-[0.12em] text-ink-3">Uptime</div>
+                  <div className="metric-value text-base text-ink-1 tabular-nums leading-none mt-1">
+                    <AnimatedNumber value={selUptime} format={n => `${n.toFixed(1)}%`} />
+                  </div>
+                </div>
               </div>
+            </Panel>
+
+            {/* 24h state history strip — deterministic hash-seeded band */}
+            <Panel className="p-3.5">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-3">
+                  24h State History
+                </div>
+                <span className="text-[9px] font-mono text-ink-mute">−24h → now</span>
+              </div>
+              <StateStrip
+                toolId={selectedTool.toolId}
+                currentState={states[selectedTool.toolId] || 'NSC'}
+              />
             </Panel>
 
             {/* SECS message log terminal */}
