@@ -11,18 +11,26 @@ import {
   ReferenceLine,
   ResponsiveContainer,
 } from 'recharts'
-import { TrendingUp, LineChart, Radio, Target, Layers, Gauge as GaugeIcon } from 'lucide-react'
+import { TrendingUp, LineChart, Radio, Target, Layers, Gauge as GaugeIcon, Grid3x3 } from 'lucide-react'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
 import { DenseDataTable } from '../../components/DenseDataTable'
 import type { Column } from '../../components/DenseDataTable'
 import { MetricTile } from '../../components/ui/MetricTile'
+import { ModuleHeader } from '../../components/ui/ModuleHeader'
+import { AnimatedNumber } from '../../components/ui/AnimatedNumber'
+import { Heatbar } from '../../components/ui/Heatbar'
+import { SparkRing } from '../../components/ui/SparkRing'
 import { CHART, ChartDefs, ChartTooltip } from '../../lib/chartTheme'
 import { chartSeries, neutral } from '../../lib/tokens'
 import { cn } from '../../lib/utils'
+import { seasonalityMatrix, forecastAccuracy } from './demandViz'
 import type { ScmModuleProps } from './types'
 
 const FORECAST_COLOR = chartSeries[2] // indigo — the SCM domain accent
 const ACTUAL_COLOR = chartSeries[3]   // emerald
+
+// IBP forecast-accuracy target — the tick on each SKU's accuracy bullet.
+const ACCURACY_TARGET = 90
 
 /** Bucket labels: IBP weekly horizon. */
 function bucketLabel(i: number): string {
@@ -82,6 +90,98 @@ const KIND_LABEL: Record<RowKind, string> = {
   variance: 'Variance',
 }
 
+/** Hero seasonality heatmap — SVG grid of top-SKU × bucket forecast intensity.
+ *  Each cell's fill opacity = its row-normalized intensity (the SKU's seasonal
+ *  shape); clicking a row charts that material. Pure render off the heat rows. */
+function SeasonalityHeatmap({
+  rows,
+  bucketCount,
+  onSelect,
+  activeNo,
+}: {
+  rows: ReturnType<typeof seasonalityMatrix>
+  bucketCount: number
+  onSelect: (materialNo: string) => void
+  activeNo: string | null
+}) {
+  const LABEL_W = 96
+  const CELL = 30
+  const GAP = 3
+  const HEAD_H = 16
+  const W = LABEL_W + bucketCount * (CELL + GAP)
+  const H = HEAD_H + rows.length * (CELL + GAP)
+
+  return (
+    <svg width={W} height={H} className="block" role="img" aria-label="SKU seasonality heatmap">
+      {/* Bucket headers */}
+      {Array.from({ length: bucketCount }, (_, b) => (
+        <text
+          key={`h${b}`}
+          x={LABEL_W + b * (CELL + GAP) + CELL / 2}
+          y={HEAD_H - 5}
+          textAnchor="middle"
+          className="font-mono"
+          style={{ fontSize: 9, letterSpacing: '0.08em', fill: '#74849E' }}
+        >
+          {bucketLabel(b)}
+        </text>
+      ))}
+      {rows.map((row, r) => {
+        const y = HEAD_H + r * (CELL + GAP)
+        const active = row.materialNo === activeNo
+        return (
+          <g
+            key={row.materialNo}
+            className="cursor-pointer"
+            role="button"
+            tabIndex={0}
+            aria-label={`${row.materialNo} forecast row`}
+            onClick={() => onSelect(row.materialNo)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onSelect(row.materialNo)
+              }
+            }}
+          >
+            <text
+              x={LABEL_W - 8}
+              y={y + CELL / 2 + 3}
+              textAnchor="end"
+              className="font-mono"
+              style={{ fontSize: 10, fontWeight: active ? 700 : 500, fill: active ? '#E8EEF7' : '#AEBBD0' }}
+            >
+              {row.materialNo}
+            </text>
+            {row.cells.map((cell, b) => {
+              const x = LABEL_W + b * (CELL + GAP)
+              // Opacity floor so empty cells stay visible as a faint grid.
+              const op = 0.1 + cell.intensity * 0.8
+              return (
+                <rect
+                  key={b}
+                  x={x}
+                  y={y}
+                  width={CELL}
+                  height={CELL}
+                  rx={3}
+                  fill={FORECAST_COLOR}
+                  fillOpacity={op}
+                  stroke={active ? FORECAST_COLOR : 'rgba(255,255,255,0.06)'}
+                  strokeWidth={active ? 1.2 : 1}
+                  style={cell.intensity > 0.66 ? { filter: `drop-shadow(0 0 4px ${FORECAST_COLOR}88)` } : undefined}
+                >
+                  <title>{`${row.materialNo} · ${bucketLabel(b)}: ${Math.round(cell.qty).toLocaleString()} ea`}</title>
+                </rect>
+              )
+            })}
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
 export function DemandPlanningModule({ scmData, eventBus }: ScmModuleProps) {
   // Live forecast overlays: scm.forecast.updated re-plans a material bucket.
   // Keyed `${materialNo}:${bucket}` → latest qty, folded onto the static plan.
@@ -126,6 +226,15 @@ export function DemandPlanningModule({ scmData, eventBus }: ScmModuleProps) {
   // KPI rail aggregates across the whole plan window (number-first).
   const kpis = useMemo(() => computeKpis(plans), [plans])
 
+  // Hero seasonality heatmap (top SKUs × buckets) + per-SKU forecast accuracy and
+  // a deterministic confidence read-out (accuracy as the proxy) — all pure.
+  const heatRows = useMemo(() => seasonalityMatrix(plans, 8), [plans])
+  const accuracyByMaterial = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const p of plans) m.set(p.materialNo, forecastAccuracy(p))
+    return m
+  }, [plans])
+
   // Chart series for the active material + the spike-beat reference bucket.
   const chartData = useMemo(() => {
     if (!active) return []
@@ -153,24 +262,37 @@ export function DemandPlanningModule({ scmData, eventBus }: ScmModuleProps) {
       {
         key: 'material',
         header: 'Material · Metric',
-        width: 220,
-        render: row => (
-          <div className="flex items-baseline gap-2 min-w-0">
-            {row.lead ? (
-              <span className="font-mono text-ink-1 shrink-0">{row.materialNo}</span>
-            ) : (
-              <span className="font-mono text-ink-mute shrink-0">·</span>
-            )}
-            <span
-              className={cn(
-                'text-[10px] uppercase tracking-[0.12em]',
-                row.kind === 'variance' ? 'text-ink-3' : 'text-ink-2',
+        width: 300,
+        render: row => {
+          const acc = accuracyByMaterial.get(row.materialNo) ?? 0
+          return (
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-baseline gap-2 min-w-0 flex-1">
+                {row.lead ? (
+                  <span className="font-mono text-ink-1 shrink-0">{row.materialNo}</span>
+                ) : (
+                  <span className="font-mono text-ink-mute shrink-0">·</span>
+                )}
+                <span
+                  className={cn(
+                    'text-[10px] uppercase tracking-[0.12em]',
+                    row.kind === 'variance' ? 'text-ink-3' : 'text-ink-2',
+                  )}
+                >
+                  {KIND_LABEL[row.kind]}
+                </span>
+              </div>
+              {/* Forecast-accuracy bullet + confidence ring — drawn once per
+                  material block (the lead row), the metric bands stay clean. */}
+              {row.lead && (
+                <div className="flex items-center gap-2 shrink-0" title={`Forecast accuracy ${acc.toFixed(0)}% · target ${ACCURACY_TARGET}%`}>
+                  <Heatbar value={Math.round(acc)} max={100} tone="auto" ticks={[ACCURACY_TARGET]} className="w-20" />
+                  <SparkRing value={Math.round(acc)} max={100} size={20} tone="auto" />
+                </div>
               )}
-            >
-              {KIND_LABEL[row.kind]}
-            </span>
-          </div>
-        ),
+            </div>
+          )
+        },
       },
     ]
     for (let i = 0; i < bucketCount; i++) {
@@ -206,7 +328,7 @@ export function DemandPlanningModule({ scmData, eventBus }: ScmModuleProps) {
       })
     }
     return cols
-  }, [bucketCount])
+  }, [bucketCount, accuracyByMaterial])
 
   if (plans.length === 0) {
     return (
@@ -228,9 +350,41 @@ export function DemandPlanningModule({ scmData, eventBus }: ScmModuleProps) {
   }
 
   return (
-    <div className="flex flex-col h-full gap-4 p-4 overflow-y-auto">
+    <div className="relative flex flex-col h-full gap-4 p-4 overflow-y-auto">
+      <div className="bg-bloom" aria-hidden />
+
+      {/* Cinematic module identity — KPIs fold into live AnimatedNumber pills. */}
+      <ModuleHeader
+        className="shrink-0 animate-rise"
+        domain="SCM"
+        icon={<TrendingUp size={13} strokeWidth={2} />}
+        title="Demand Planning"
+        subtitle="IBP forecast vs. realized actuals — accuracy, bias, seasonality"
+        pills={[
+          {
+            label: 'Accuracy',
+            value: <AnimatedNumber value={kpis.accuracyPct} format={n => `${n.toFixed(1)}%`} />,
+            tone: kpis.accuracyPct >= ACCURACY_TARGET ? 'success' : 'warn',
+          },
+          {
+            label: 'Bias',
+            value: (
+              <AnimatedNumber value={kpis.biasPct} format={n => `${n > 0 ? '+' : ''}${n.toFixed(1)}%`} />
+            ),
+            tone: Math.abs(kpis.biasPct) < 6 ? 'success' : 'warn',
+          },
+          { label: 'FERT', value: <AnimatedNumber value={plans.length} />, tone: 'info' },
+        ]}
+        right={
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-accent-3">
+            <Radio size={12} strokeWidth={1.9} className="animate-pulse-soft" />
+            {updateCount > 0 ? `${updateCount} re-plans` : 'Live'}
+          </span>
+        }
+      />
+
       {/* KPI rail — number-first */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0 animate-rise" style={{ animationDelay: '60ms' }}>
         <MetricTile
           label="Plan Volume"
           value={kpis.planVolume.toLocaleString()}
@@ -262,7 +416,7 @@ export function DemandPlanningModule({ scmData, eventBus }: ScmModuleProps) {
       </div>
 
       {/* Forecast vs actual — dual-axis composed chart for the active material */}
-      <Panel className="shrink-0 flex flex-col" data-tour="demand-planning.chart">
+      <Panel className="shrink-0 flex flex-col animate-rise" data-tour="demand-planning.chart" style={{ animationDelay: '90ms' }}>
         <PanelHeader
           title={`Demand Plan · ${activeNo ?? '—'}`}
           subtitle="Forecast vs. realized actuals across the planning horizon"
@@ -326,8 +480,23 @@ export function DemandPlanningModule({ scmData, eventBus }: ScmModuleProps) {
         </div>
       </Panel>
 
+      {/* Hero seasonality heatmap — top SKUs × buckets, each row normalized to its
+          own peak forecast bucket so the seasonal shape reads per-SKU. */}
+      {heatRows.length > 0 && bucketCount > 0 && (
+        <Panel className="shrink-0 flex flex-col overflow-hidden animate-rise" style={{ animationDelay: '120ms' }}>
+          <PanelHeader
+            title="Seasonality Heatmap"
+            subtitle={`Top ${heatRows.length} SKUs × ${bucketCount}-week horizon · forecast intensity`}
+            icon={<Grid3x3 size={15} strokeWidth={1.9} />}
+          />
+          <div className="p-3 overflow-x-auto">
+            <SeasonalityHeatmap rows={heatRows} bucketCount={bucketCount} onSelect={setSelectedNo} activeNo={activeNo} />
+          </div>
+        </Panel>
+      )}
+
       {/* IBP demand grid — three bands per material, variance heat-tinted */}
-      <Panel className="flex-1 min-h-[260px] flex flex-col p-0 overflow-hidden">
+      <Panel className="flex-1 min-h-[260px] flex flex-col p-0 overflow-hidden animate-rise" style={{ animationDelay: '180ms' }}>
         <PanelHeader
           title="Demand Grid · Forecast / Actual / Variance"
           subtitle={`${plans.length} materials · ${bucketCount}-week horizon · click a row to chart`}

@@ -13,6 +13,8 @@ import {
 import type { ReactNode } from 'react'
 import { Panel } from '../../components/ui/Panel'
 import { MetricTile } from '../../components/ui/MetricTile'
+import { ModuleHeader } from '../../components/ui/ModuleHeader'
+import { AnimatedNumber } from '../../components/ui/AnimatedNumber'
 import { DrillInPanel } from '../../components/DrillInPanel'
 import { useShipments } from '../../lib/useShipments'
 import { useUiStore } from '../../lib/uiStore'
@@ -447,9 +449,51 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
   }, [selectedEntity, nodeById, laneGeoById, shipments, disruptions])
 
   return (
-    <div className="flex h-full flex-col gap-3 p-4">
+    <div className="relative flex h-full flex-col gap-3 p-4">
+      <div className="bg-bloom" aria-hidden />
+
+      {/* Cinematic module identity — title content folded in, KPI read-outs as
+          live AnimatedNumber pills (the rail below carries the full tiles). */}
+      <ModuleHeader
+        className="shrink-0 animate-rise"
+        domain="SCM"
+        icon={<ShipIcon size={13} strokeWidth={2} />}
+        title="Supply Network · Control Tower"
+        subtitle="Live in-transit shipments, lanes, disruptions across the network"
+        pills={[
+          { label: 'In Transit', value: <AnimatedNumber value={kpis.inTransit} />, tone: 'accent' },
+          {
+            label: 'On-Time',
+            value: <AnimatedNumber value={kpis.onTimePct} format={n => `${Math.round(n)}%`} />,
+            tone: 'success',
+          },
+          {
+            label: 'Disrupted',
+            value: <AnimatedNumber value={kpis.disruptions} />,
+            tone: kpis.disruptions > 0 ? 'critical' : 'info',
+          },
+        ]}
+        right={
+          <span
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-mono uppercase tracking-[0.14em]',
+              healthy
+                ? 'border-success/30 bg-success/10 text-success'
+                : 'border-critical/30 bg-critical/10 text-critical',
+            )}
+          >
+            {healthy ? (
+              <ShieldCheck size={12} strokeWidth={2} className={cn(!reduced && 'animate-pulse-soft')} />
+            ) : (
+              <TriangleAlert size={12} strokeWidth={2} className={cn(!reduced && 'animate-pulse-glow')} />
+            )}
+            {healthy ? 'Nominal' : 'Alert'}
+          </span>
+        }
+      />
+
       {/* KPI rail — a number is the first focal point (plan Fix 10). */}
-      <div className="grid shrink-0 grid-cols-5 gap-3">
+      <div className="grid shrink-0 grid-cols-5 gap-3 animate-rise" style={{ animationDelay: '60ms' }}>
         <MetricTile
           label="In Transit"
           value={String(kpis.inTransit)}
@@ -492,24 +536,7 @@ export function ControlTowerModule({ scmData, eventBus }: ScmModuleProps) {
 
       {/* The hero map — fixed-viewBox SVG in an overflow-hidden Panel so it
           intrinsically clips (mirrors FabFloor/index + BayLayout). */}
-      <Panel className="hud-frame relative flex-1 min-h-0 overflow-hidden" data-tour="control-tower.network">
-        <div className="pointer-events-none absolute top-3 right-4 z-10 flex items-center gap-2">
-          <span className="text-[10px] font-mono uppercase tracking-[0.22em] text-ink-3">
-            SUPPLY NETWORK · CONTROL TOWER
-          </span>
-          {healthy ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-[0.14em] text-success">
-              <ShieldCheck size={12} strokeWidth={2} className="animate-pulse-soft" />
-              Nominal
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-[0.14em] text-critical">
-              <TriangleAlert size={12} strokeWidth={2} className="animate-pulse-glow" />
-              Alert
-            </span>
-          )}
-        </div>
-
+      <Panel className="hud-frame relative flex-1 min-h-0 overflow-hidden animate-rise" data-tour="control-tower.network" style={{ animationDelay: '120ms' }}>
         <div ref={wrapRef} className="relative h-full w-full">
           <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="w-full h-full">
             <defs>
