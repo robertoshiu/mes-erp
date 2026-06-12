@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ShoppingCart, ListOrdered, PackageCheck, AlertTriangle } from 'lucide-react'
+import { ShoppingCart, ListOrdered, PackageCheck, AlertTriangle, Users, PieChart } from 'lucide-react'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
 import { Gauge } from '../../components/ui/Gauge'
+import { ModuleHeader } from '../../components/ui/ModuleHeader'
+import { AnimatedNumber } from '../../components/ui/AnimatedNumber'
+import { Heatbar } from '../../components/ui/Heatbar'
+import { RankBar } from '../../components/ui/RankBar'
+import { DonutSpark } from '../../components/ui/DonutSpark'
+import { sem, brand } from '../../lib/tokens'
 import { DenseDataTable, type Column } from '../../components/DenseDataTable'
 import { DrillInPanel } from '../../components/DrillInPanel'
 import { useUiStore } from '../../lib/uiStore'
@@ -366,7 +372,8 @@ function AtpAvailabilityPanel({ atp }: { atp: AtpSupply }) {
 /** Sales-order row enriched with the derived ATP promise (kept on-system, additive). */
 type AtpOrder = SalesOrder & { atpStatus: AtpStatus; promisedDate: string }
 
-const cols: Column<AtpOrder>[] = [
+function makeCols(maxValue: number): Column<AtpOrder>[] {
+  return [
   {
     key: 'orderNo', header: 'Order No', width: 130, mono: true,
     render: r => r.orderNo,
@@ -416,11 +423,17 @@ const cols: Column<AtpOrder>[] = [
     },
   },
   {
-    key: 'netValue', header: 'Net Value', width: 116, mono: true,
-    render: r => <span className="block w-full text-right font-mono tabular-nums">{usd(r.netValue)}</span>,
+    key: 'netValue', header: 'Net Value', width: 156, mono: true,
+    render: r => (
+      <div className="flex items-center gap-2 w-full">
+        <span className="font-mono tabular-nums text-right shrink-0 w-[72px]">{usd(r.netValue)}</span>
+        <Heatbar value={r.netValue} max={maxValue} tone="accent" className="flex-1 min-w-[36px]" />
+      </div>
+    ),
     sortFn: (a, b) => a.netValue - b.netValue,
   },
-]
+  ]
+}
 
 export function SalesOrdersModule({ erpData, eventBus }: ErpModuleProps) {
   const selectEntity = useUiStore(s => s.selectEntity)
@@ -470,6 +483,41 @@ export function SalesOrdersModule({ erpData, eventBus }: ErpModuleProps) {
   const openCount = orders.filter(o => o.status === 'open').length
   const hotCount = orders.filter(o => o.priority === 'hot' || o.priority === 'super-hot').length
   const shortCount = orders.filter(o => o.atpStatus === 'shortfall').length
+
+  // Top customers by open order value — feeds the demand RankBar (additive).
+  const customerDemand = useMemo(() => {
+    const byCustomer = new Map<string, { value: number; count: number }>()
+    for (const o of orders) {
+      if (o.status === 'complete') continue
+      const cur = byCustomer.get(o.customerName) ?? { value: 0, count: 0 }
+      cur.value += o.netValue
+      cur.count += 1
+      byCustomer.set(o.customerName, cur)
+    }
+    return [...byCustomer.entries()]
+      .map(([label, v]) => ({ label, value: v.value, hint: `${v.count}` }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6)
+  }, [orders])
+
+  // Status mix donut (open / in-process / hold / complete).
+  const statusMix = useMemo(() => {
+    const c = { open: 0, 'in-process': 0, hold: 0, complete: 0 } as Record<OrderStatus, number>
+    for (const o of orders) c[o.status] += 1
+    return [
+      { value: c.open, color: brand.primary, label: 'Open' },
+      { value: c['in-process'], color: sem.success, label: 'In-Process' },
+      { value: c.hold, color: sem.warn, label: 'Hold' },
+      { value: c.complete, color: '#4C5A74', label: 'Complete' },
+    ]
+  }, [orders])
+
+  const maxValue = useMemo(
+    () => orders.reduce((m, o) => Math.max(m, o.netValue), 1),
+    [orders],
+  )
+  const cols = useMemo(() => makeCols(maxValue), [maxValue])
+  const totalValue = useMemo(() => orders.reduce((s, o) => s + o.netValue, 0), [orders])
 
   const selectedRow =
     selectedEntity?.type === 'salesOrder'
@@ -526,14 +574,73 @@ export function SalesOrdersModule({ erpData, eventBus }: ErpModuleProps) {
 
   return (
     <div className="flex h-full">
-      <div className="flex-1 p-4 min-w-0">
-        <Panel className="flex flex-col h-full overflow-hidden">
-          <PanelHeader
+      <div className="relative flex-1 min-w-0 flex flex-col p-4 gap-3 overflow-hidden">
+        <div className="bg-bloom" aria-hidden />
+
+        <div className="relative z-[1] animate-rise" style={{ animationDelay: '0ms' }}>
+          <ModuleHeader
             title="Sales Orders"
-            subtitle={`${orders.length.toLocaleString()} orders`}
-            icon={<ShoppingCart size={15} strokeWidth={1.9} />}
+            subtitle={`${orders.length.toLocaleString()} orders · available-to-promise book`}
+            domain="ERP"
+            icon={<ShoppingCart size={13} strokeWidth={2} />}
+            pills={[
+              { label: 'Open', value: <AnimatedNumber value={openCount} />, tone: 'accent' },
+              { label: 'Expedited', value: <AnimatedNumber value={hotCount} />, tone: 'critical' },
+              {
+                label: 'At Risk',
+                value: <AnimatedNumber value={shortCount} />,
+                tone: shortCount > 0 ? 'critical' : 'success',
+              },
+            ]}
             right={headerRight}
           />
+        </div>
+
+        {/* Customer demand + status mix hero band */}
+        <div className="relative z-[1] grid gap-3 animate-rise" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(180px, auto)', animationDelay: '60ms' }}>
+          <Panel className="overflow-hidden">
+            <PanelHeader
+              title="Customer Demand"
+              subtitle="Top 6 by open order value"
+              icon={<Users size={14} strokeWidth={1.9} />}
+              right={
+                <span className="flex items-center gap-1.5 text-[10px] text-ink-3 uppercase tracking-[0.12em]">
+                  book
+                  <span className="font-mono metric-value text-ink-1 normal-case tracking-normal">
+                    <AnimatedNumber value={totalValue} format={usd} />
+                  </span>
+                </span>
+              }
+            />
+            <div className="p-2.5">
+              {customerDemand.length === 0 ? (
+                <div className="px-2 py-4 text-[11px] text-ink-3">No open demand on the book.</div>
+              ) : (
+                <RankBar
+                  items={customerDemand}
+                  tone="accent"
+                  formatValue={usd}
+                  onSelect={item => {
+                    const match = orders.find(o => o.customerName === item.label)
+                    if (match) selectEntity({ type: 'salesOrder', id: match.orderNo })
+                  }}
+                />
+              )}
+            </div>
+          </Panel>
+
+          <Panel className="overflow-hidden flex flex-col items-center justify-center px-4">
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-3 self-start mt-2.5">
+              <PieChart size={13} strokeWidth={1.9} className="text-accent" />
+              Status Mix
+            </div>
+            <div className="flex-1 flex items-center justify-center py-1">
+              <DonutSpark segments={statusMix} size={84} centerValue={orders.length} centerLabel="orders" />
+            </div>
+          </Panel>
+        </div>
+
+        <Panel className="relative z-[1] flex flex-col flex-1 min-h-0 overflow-hidden animate-rise" style={{ animationDelay: '120ms' }}>
           <AtpAvailabilityPanel atp={atp} />
           <div className="flex-1 min-h-0">
             <DenseDataTable

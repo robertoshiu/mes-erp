@@ -1,11 +1,24 @@
 import { useMemo } from 'react'
-import { Factory, Radio, Link2, Activity } from 'lucide-react'
-import { MasterDataModule } from '../../components/MasterDataModule'
-import type { Column } from '../../components/DenseDataTable'
+import { Factory, Radio, Link2, Activity, GanttChartSquare } from 'lucide-react'
+import { Panel, PanelHeader } from '../../components/ui/Panel'
+import { DenseDataTable, type Column } from '../../components/DenseDataTable'
+import { DrillInPanel } from '../../components/DrillInPanel'
+import { ModuleHeader } from '../../components/ui/ModuleHeader'
+import { AnimatedNumber } from '../../components/ui/AnimatedNumber'
+import { useUiStore } from '../../lib/uiStore'
 import { cn } from '../../lib/utils'
 import { useBridgedLots } from '../../lib/useBridgedLots'
 import type { ProductionOrder, ProdOrderStatus, BridgedLot } from '../../data/erp/types'
 import type { ErpModuleProps } from './types'
+import { buildGantt, TODAY_REF, type GanttBar } from './prodTimeline'
+
+/** Status-toned fill + glow for the Gantt bars and kanban chips. */
+const STATUS_VIZ: Record<ProdOrderStatus, { fill: string; glow: string; label: string }> = {
+  Created: { fill: '#4C5A74', glow: 'rgba(76, 90, 116, 0.5)', label: 'Created' },
+  Released: { fill: '#38BDF8', glow: 'rgba(56, 189, 248, 0.5)', label: 'Released' },
+  InProcess: { fill: '#22D3EE', glow: 'rgba(34, 211, 238, 0.6)', label: 'In-Process' },
+  Completed: { fill: '#34D399', glow: 'rgba(52, 211, 153, 0.5)', label: 'Completed' },
+}
 
 /** Status chip styled per ProdOrderStatus. InProcess pulses on accent. */
 function StatusCell({ status }: { status: ProdOrderStatus }) {
@@ -106,6 +119,8 @@ function SectionTitle({ icon, text }: { icon: React.ReactNode; text: string }) {
 }
 
 export function ProductionOrdersModule({ erpData, eventBus: _eventBus }: ErpModuleProps) {
+  const selectEntity = useUiStore((s) => s.selectEntity)
+  const selectedEntity = useUiStore((s) => s.selectedEntity)
   const bridged = useBridgedLots((s) => s.lots)
 
   // Index bridged lots by their production order number for O(1) lookup.
@@ -133,6 +148,16 @@ export function ProductionOrdersModule({ erpData, eventBus: _eventBus }: ErpModu
   const inFlight = useMemo(
     () => bridged.filter((l) => l.status !== 'complete').length,
     [bridged],
+  )
+
+  // Hero Gantt model — deterministic timeline derived from order status + hash.
+  const gantt = useMemo(() => buildGantt(orders, 14), [orders])
+
+  const selectedOrderNo =
+    selectedEntity?.type === 'prodOrder' ? selectedEntity.id : null
+  const selectedRow = useMemo(
+    () => (selectedOrderNo ? orders.find((o) => o.orderNo === selectedOrderNo) ?? null : null),
+    [orders, selectedOrderNo],
   )
 
   const columns: Column<ProductionOrder>[] = useMemo(
@@ -282,19 +307,203 @@ export function ProductionOrdersModule({ erpData, eventBus: _eventBus }: ErpModu
   }
 
   return (
-    <MasterDataModule
-      title="Production Orders"
-      subtitle={`${orders.length.toLocaleString()} orders · ${inFlight} live on floor`}
-      icon={<Factory size={15} strokeWidth={1.9} />}
-      data={orders}
-      columns={columns}
-      rowKey={(r) => r.orderNo}
-      entityType="prodOrder"
-      dataTour="production-orders.table"
-      headerRight={headerRight}
-      renderDetail={renderDetail}
-      detailTitle={(r) => r.orderNo}
-      detailSubtitle={(r) => r.description}
-    />
+    <div className="flex h-full">
+      <div className="relative flex-1 min-w-0 flex flex-col p-4 gap-3 overflow-hidden">
+        <div className="bg-bloom" aria-hidden />
+
+        <div className="relative z-[1] animate-rise" style={{ animationDelay: '0ms' }}>
+          <ModuleHeader
+            title="Production Orders"
+            subtitle={`${orders.length.toLocaleString()} orders · ${inFlight} live on floor`}
+            domain="ERP"
+            icon={<Factory size={13} strokeWidth={2} />}
+            pills={[
+              { label: 'In-Process', value: <AnimatedNumber value={statusCounts.InProcess} />, tone: 'accent' },
+              { label: 'Released', value: <AnimatedNumber value={statusCounts.Released} />, tone: 'info' },
+              { label: 'On Floor', value: <AnimatedNumber value={inFlight} />, tone: 'success' },
+            ]}
+            right={headerRight}
+          />
+        </div>
+
+        {/* Hero order-timeline (Gantt) + status mini-kanban */}
+        <div className="relative z-[1] grid gap-3 animate-rise" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(200px, auto)', animationDelay: '60ms' }}>
+          <GanttStrip
+            bars={gantt}
+            selectedNo={selectedOrderNo}
+            onSelect={(no) => selectEntity({ type: 'prodOrder', id: no })}
+          />
+          <Kanban counts={statusCounts} inFlight={inFlight} />
+        </div>
+
+        <Panel className="relative z-[1] flex flex-col flex-1 min-h-0 overflow-hidden animate-rise" style={{ animationDelay: '120ms' }} data-tour="production-orders.table">
+          <PanelHeader
+            title="Order Book"
+            subtitle={`${orders.length.toLocaleString()} orders`}
+            icon={<Factory size={15} strokeWidth={1.9} />}
+          />
+          <div className="flex-1 min-h-0">
+            <DenseDataTable
+              data={orders}
+              columns={columns}
+              rowKey={(r) => r.orderNo}
+              onRowClick={(row) => selectEntity({ type: 'prodOrder', id: row.orderNo })}
+              selectedKey={selectedEntity?.id ?? null}
+            />
+          </div>
+        </Panel>
+      </div>
+
+      {selectedRow && (
+        <DrillInPanel title={selectedRow.orderNo} subtitle={selectedRow.description}>
+          {renderDetail(selectedRow)}
+        </DrillInPanel>
+      )}
+    </div>
+  )
+}
+
+/* ===========================================================================
+   Hero order-timeline strip (pure-SVG Gantt). One bar per order on a 0..1 time
+   axis derived deterministically from order status (see prodTimeline.ts), a
+   "today" reference line, status-toned fills, and a glow on the selected order.
+   Clicking a bar selects the order (same uiStore selection as the table rows).
+   =========================================================================== */
+function GanttStrip({
+  bars,
+  selectedNo,
+  onSelect,
+}: {
+  bars: GanttBar[]
+  selectedNo: string | null
+  onSelect: (orderNo: string) => void
+}) {
+  const rowH = 13
+  const gap = 3
+  const padX = 4
+  const innerW = 100 - padX * 2 // viewBox is 0..100 horizontally
+  const height = Math.max(1, bars.length) * (rowH + gap)
+  return (
+    <Panel className="overflow-hidden">
+      <PanelHeader
+        title="Order Timeline"
+        subtitle="Scheduled run windows · status-toned"
+        icon={<GanttChartSquare size={14} strokeWidth={1.9} />}
+        right={
+          <span className="hidden lg:flex items-center gap-2.5 text-[9px] uppercase tracking-[0.12em] text-ink-3">
+            {(['InProcess', 'Released', 'Created', 'Completed'] as ProdOrderStatus[]).map((s) => (
+              <span key={s} className="inline-flex items-center gap-1">
+                <span className="w-2 h-2 rounded-[2px]" style={{ background: STATUS_VIZ[s].fill }} aria-hidden />
+                {STATUS_VIZ[s].label}
+              </span>
+            ))}
+          </span>
+        }
+      />
+      <div className="p-2.5">
+        {bars.length === 0 ? (
+          <div className="px-1 py-3 text-[11px] text-ink-3">No production orders to schedule.</div>
+        ) : (
+          <svg
+            width="100%"
+            height={height}
+            viewBox={`0 0 100 ${height}`}
+            preserveAspectRatio="none"
+            role="img"
+            aria-label="Production order timeline"
+          >
+            {/* Today reference line */}
+            <line
+              x1={padX + TODAY_REF * innerW}
+              y1={0}
+              x2={padX + TODAY_REF * innerW}
+              y2={height}
+              stroke="rgba(34, 211, 238, 0.55)"
+              strokeWidth={0.5}
+              strokeDasharray="1.4 1.4"
+            />
+            {bars.map((bar, i) => {
+              const viz = STATUS_VIZ[bar.status]
+              const x = padX + bar.start * innerW
+              const w = Math.max(1, (bar.end - bar.start) * innerW)
+              const y = i * (rowH + gap)
+              const isSel = bar.orderNo === selectedNo
+              return (
+                <g key={bar.orderNo} className="cursor-pointer" onClick={() => onSelect(bar.orderNo)}>
+                  {/* Hover/click hit area spans the full row width */}
+                  <rect x={0} y={y} width={100} height={rowH} fill="transparent" />
+                  <rect
+                    x={x}
+                    y={y + 2}
+                    width={w}
+                    height={rowH - 4}
+                    rx={1.5}
+                    fill={viz.fill}
+                    fillOpacity={isSel ? 1 : 0.82}
+                    stroke={isSel ? '#fff' : 'transparent'}
+                    strokeWidth={isSel ? 0.5 : 0}
+                    style={{ filter: isSel ? `drop-shadow(0 0 3px ${viz.glow})` : undefined }}
+                  >
+                    <title>{`${bar.orderNo} · ${viz.label}`}</title>
+                  </rect>
+                </g>
+              )
+            })}
+          </svg>
+        )}
+      </div>
+    </Panel>
+  )
+}
+
+/** Status mini-kanban: per-status count chips with animated count-ups. */
+function Kanban({
+  counts,
+  inFlight,
+}: {
+  counts: Record<ProdOrderStatus, number>
+  inFlight: number
+}) {
+  const lanes: { status: ProdOrderStatus; n: number }[] = [
+    { status: 'Created', n: counts.Created },
+    { status: 'Released', n: counts.Released },
+    { status: 'InProcess', n: counts.InProcess },
+    { status: 'Completed', n: counts.Completed },
+  ]
+  return (
+    <Panel className="overflow-hidden flex flex-col">
+      <PanelHeader title="Status Board" icon={<Radio size={14} strokeWidth={1.9} />} />
+      <div className="p-2.5 grid grid-cols-2 gap-2 flex-1">
+        {lanes.map(({ status, n }) => {
+          const viz = STATUS_VIZ[status]
+          return (
+            <div
+              key={status}
+              className="rounded-md border border-edge bg-surface-3/30 px-2.5 py-2 flex flex-col gap-1"
+              style={{ boxShadow: `inset 2px 0 0 ${viz.fill}` }}
+            >
+              <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-ink-3 inline-flex items-center gap-1.5">
+                <span
+                  className={cn('w-1.5 h-1.5 rounded-full', status === 'InProcess' && 'animate-pulse-soft')}
+                  style={{ background: viz.fill, boxShadow: `0 0 6px ${viz.glow}` }}
+                  aria-hidden
+                />
+                {viz.label}
+              </span>
+              <span className="metric-value text-[18px] font-semibold text-ink-1 leading-none">
+                <AnimatedNumber value={n} />
+              </span>
+            </div>
+          )
+        })}
+      </div>
+      <div className="px-2.5 pb-2 -mt-0.5 flex items-center gap-1.5 text-[10px] text-ink-3">
+        <Radio size={12} strokeWidth={1.9} className="text-accent animate-pulse-soft" />
+        <span className="font-mono metric-value text-ink-1">
+          <AnimatedNumber value={inFlight} />
+        </span>
+        <span className="uppercase tracking-[0.12em]">MES-bridged lots live</span>
+      </div>
+    </Panel>
   )
 }
