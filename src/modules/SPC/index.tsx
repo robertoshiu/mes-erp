@@ -14,8 +14,10 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts'
-import { Activity, Radio, ScrollText, AlertTriangle, Sigma, Target, BarChart3 } from 'lucide-react'
+import { Activity, Radio, ScrollText, AlertTriangle, Sigma, Target, BarChart3, ShieldCheck } from 'lucide-react'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
+import { ModuleHeader } from '../../components/ui/ModuleHeader'
+import { AnimatedNumber } from '../../components/ui/AnimatedNumber'
 import { SparkRing } from '../../components/ui/SparkRing'
 import { CHART, ChartDefs, ChartTooltip } from '../../lib/chartTheme'
 import { chartSeries } from '../../lib/tokens'
@@ -206,9 +208,43 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
   const histTotal = histogram.reduce((acc, b) => acc + b.count, 0)
 
   return (
-    <div className="flex flex-col h-full gap-4 p-4 overflow-y-auto">
+    <div className="relative flex flex-col h-full gap-4 p-4 overflow-y-auto">
+      <div className="bg-bloom" aria-hidden />
+      <div className="bg-bloom-2" aria-hidden />
+
+      <div className="relative z-[1] flex flex-col h-full min-h-0 gap-4">
+      {/* Command strip — folds the live violation count into a ModuleHeader pill. */}
+      <ModuleHeader
+        domain="MES"
+        icon={<ShieldCheck size={13} strokeWidth={2} />}
+        title="SPC / Quality"
+        subtitle="CD uniformity control point · Western-Electric rules — live"
+        pills={[
+          {
+            label: 'Violations',
+            value: <AnimatedNumber value={violations.length} />,
+            tone: violations.length > 0 ? 'critical' : 'success',
+          },
+          {
+            label: 'Cpk',
+            value: capability ? capability.cpk.toFixed(2) : '—',
+            tone: capability ? (capability.cpk >= 1.33 ? 'success' : capability.cpk >= 1 ? 'warn' : 'critical') : 'info',
+          },
+        ]}
+        right={
+          <div className="flex items-center gap-1.5 text-[11px] text-ink-3">
+            <Radio size={13} strokeWidth={1.9} className="animate-pulse-soft text-accent" />
+            <span className="uppercase tracking-[0.12em]">SPC stream</span>
+          </div>
+        }
+      />
+
       {/* Summary stat row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0" data-tour="spc.stats">
+      <div
+        className="animate-rise grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0"
+        style={{ animationDelay: '40ms' }}
+        data-tour="spc.stats"
+      >
         <StatTile
           label="Current CD"
           value={current != null ? current.toFixed(2) : '—'}
@@ -245,7 +281,11 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
       </div>
 
       {/* Control Chart */}
-      <Panel className="flex-1 min-h-[280px] flex flex-col" data-tour="spc.control-chart">
+      <Panel
+        className="animate-rise flex-1 min-h-[280px] flex flex-col"
+        style={{ animationDelay: '90ms' }}
+        data-tour="spc.control-chart"
+      >
         <PanelHeader
           title="SPC Control Chart · CD Uniformity (nm)"
           icon={<Activity size={15} strokeWidth={1.9} />}
@@ -328,7 +368,10 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
 
       {/* Distribution histogram — last 50 control points binned across the spec
           window, bars toned by spec/control-limit membership + USL/LSL shading. */}
-      <Panel className="shrink-0 flex flex-col min-h-[200px]">
+      <Panel
+        className="animate-rise shrink-0 flex flex-col min-h-[200px]"
+        style={{ animationDelay: '130ms' }}
+      >
         <PanelHeader
           title="CD Distribution · last 50 samples"
           icon={<BarChart3 size={15} strokeWidth={1.9} />}
@@ -387,7 +430,10 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
       </Panel>
 
       {/* Violation Log */}
-      <Panel className="shrink-0 flex flex-col max-h-56">
+      <Panel
+        className="animate-rise shrink-0 flex flex-col max-h-56"
+        style={{ animationDelay: '170ms' }}
+      >
         <PanelHeader
           title="Violation Log"
           icon={<ScrollText size={15} strokeWidth={1.9} />}
@@ -433,6 +479,7 @@ export function SpcModule({ eventBus }: SpcModuleProps) {
           })}
         </div>
       </Panel>
+      </div>
     </div>
   )
 }
