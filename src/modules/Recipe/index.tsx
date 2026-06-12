@@ -9,12 +9,29 @@ import {
   ArrowRight,
   ScrollText,
   ClipboardList,
+  TrendingUp,
+  Radar as RadarIcon,
 } from 'lucide-react'
+import {
+  ResponsiveContainer,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Tooltip,
+} from 'recharts'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
+import { ModuleHeader } from '../../components/ui/ModuleHeader'
+import { RankBar } from '../../components/ui/RankBar'
+import { ChartDefs, ChartTooltip, CHART } from '../../lib/chartTheme'
+import { chartSeries } from '../../lib/tokens'
 import { useUiStore } from '../../lib/uiStore'
 import { cn } from '../../lib/utils'
 import type { MasterData } from '../../data/master'
 import type { Recipe } from '../../data/master/recipes'
+import { rankRecipesByUsage } from './usage'
+import { buildParamRadar } from './paramRadar'
 
 interface RecipeModuleProps {
   masterData: MasterData
@@ -89,10 +106,39 @@ export function RecipeModule({ masterData }: RecipeModuleProps) {
     ? masterData.recipes.find(r => r.recipeId === selectedEntity.id)
     : null
 
+  // Synthetic per-recipe usage ranking for the top-loaded RankBar.
+  const usageTop = useMemo(
+    () =>
+      rankRecipesByUsage(masterData.recipes)
+        .slice(0, 6)
+        .map(u => ({ label: u.recipeId, value: u.loads, hint: 'loads' })),
+    [masterData.recipes],
+  )
+
+  // Normalized radar axes for the selected recipe's parameter profile.
+  const radarData = useMemo(
+    () => (selectedRecipe ? buildParamRadar(selectedRecipe.parameters) : []),
+    [selectedRecipe],
+  )
+
   return (
-    <div className="flex h-full gap-4 p-4 bg-canvas">
+    <div className="relative flex flex-col h-full gap-3 p-4 bg-canvas overflow-hidden">
+      <div className="bg-bloom" aria-hidden />
+
+      <ModuleHeader
+        domain="MES"
+        icon={<ScrollText size={13} strokeWidth={2} />}
+        title="Recipe Library"
+        subtitle="process recipes · version-controlled"
+        pills={[
+          { label: 'Recipes', value: masterData.recipes.length, tone: 'accent' },
+          { label: 'Tool Types', value: Object.keys(grouped).length, tone: 'info' },
+        ]}
+      />
+
+      <div className="flex flex-1 min-h-0 gap-4">
       {/* ───────────────────────── Recipe library ───────────────────────── */}
-      <Panel className="w-72 shrink-0 flex flex-col overflow-hidden" data-tour="recipe.library">
+      <Panel className="relative w-72 shrink-0 flex flex-col overflow-hidden animate-rise" style={{ animationDelay: '90ms' }} data-tour="recipe.library">
         <PanelHeader
           title="Recipe Library"
           icon={<ScrollText size={15} strokeWidth={1.9} />}
@@ -142,6 +188,22 @@ export function RecipeModule({ masterData }: RecipeModuleProps) {
               })}
             </div>
           ))}
+        </div>
+
+        {/* Most-loaded recipes usage rank (synthetic, deterministic) */}
+        <div className="shrink-0 border-t border-edge bg-surface-2/40">
+          <PanelHeader
+            title="Most Loaded"
+            subtitle="recipe usage rank"
+            icon={<TrendingUp size={13} strokeWidth={1.9} />}
+          />
+          <div className="px-2 py-2">
+            <RankBar
+              items={usageTop}
+              tone="accent"
+              onSelect={item => selectEntity({ type: 'recipe', id: item.label })}
+            />
+          </div>
         </div>
       </Panel>
 
@@ -194,6 +256,38 @@ export function RecipeModule({ masterData }: RecipeModuleProps) {
                 ))}
               </div>
             </Panel>
+
+            {/* Parameter profile radar — normalized recipe parameter shape */}
+            {radarData.length >= 3 && (
+              <Panel className="overflow-hidden">
+                <PanelHeader
+                  title="Parameter Profile"
+                  subtitle="normalized 0–100"
+                  icon={<RadarIcon size={15} strokeWidth={1.9} />}
+                />
+                <div className="px-2 py-2">
+                  <ResponsiveContainer width="100%" height={220}>
+                    <RadarChart data={radarData} outerRadius="70%">
+                      <ChartDefs />
+                      <PolarGrid stroke={CHART.grid} />
+                      <PolarAngleAxis dataKey="axis" tick={{ ...CHART.tick, fontSize: 10 }} />
+                      <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+                      <Tooltip content={<ChartTooltip labelFormatter={l => String(l)} />} />
+                      <Radar
+                        name="Value"
+                        dataKey="value"
+                        stroke={chartSeries[0]}
+                        strokeWidth={2}
+                        fill="url(#fpArea0)"
+                        fillOpacity={1}
+                        isAnimationActive={false}
+                        filter="url(#fpGlow)"
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Panel>
+            )}
 
             {/* Latest-change diff summary (only when there is a delta to show) */}
             {selectedRecipe.versions.length >= 2 && (() => {
@@ -316,6 +410,7 @@ export function RecipeModule({ masterData }: RecipeModuleProps) {
             </Panel>
           </div>
         )}
+      </div>
       </div>
     </div>
   )

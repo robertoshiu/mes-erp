@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Boxes, GitBranch, ArrowRight, Layers, Radio } from 'lucide-react'
+import { Boxes, GitBranch, ArrowRight, Layers } from 'lucide-react'
 import { DenseDataTable, type Column } from '../../components/DenseDataTable'
 import { DrillInPanel } from '../../components/DrillInPanel'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
+import { ModuleHeader } from '../../components/ui/ModuleHeader'
+import { AnimatedNumber } from '../../components/ui/AnimatedNumber'
+import { TickerTape } from '../../components/ui/TickerTape'
 import { useUiStore } from '../../lib/uiStore'
 import { cn } from '../../lib/utils'
+import { brand } from '../../lib/tokens'
 import type { EventBus } from '../../lib/eventBus'
 import type { MasterData } from '../../data/master'
 import type { Lot } from '../../data/lots'
+import { foldWipByStep, wipPeak } from './wipFold'
 
 interface ProductionModuleProps {
   eventBus: EventBus
@@ -74,6 +79,45 @@ function ProgressCell({ step, total }: { step: number; total: number }) {
   )
 }
 
+/** Animated WIP-by-route-step histogram strip — one growing bar per route step,
+ *  folded live from lot.move events + initial lot data. Compact (≤~150px). */
+function WipHistogram({ buckets, peak }: { buckets: { step: number; count: number }[]; peak: number }) {
+  return (
+    <div
+      className="flex items-end gap-1.5 h-[88px] px-1"
+      role="img"
+      aria-label="WIP lot count by route step"
+    >
+      {buckets.map(b => {
+        const ratio = peak > 0 ? b.count / peak : 0
+        const h = Math.max(3, Math.round(ratio * 80))
+        return (
+          <div key={b.step} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+            <span className="metric-value text-[9px] text-ink-3 tabular-nums leading-none">
+              {b.count}
+            </span>
+            <div className="w-full flex items-end justify-center h-[80px]">
+              <div
+                className="animate-bar-grow w-full max-w-[22px] rounded-t-sm"
+                style={{
+                  height: `${h}px`,
+                  background: `linear-gradient(180deg, ${brand.primary}, ${brand.secondary}55)`,
+                  boxShadow: `0 0 8px -1px ${brand.primary}`,
+                  animationDelay: `${b.step * 40}ms`,
+                }}
+                title={`Step ${b.step} · ${b.count} lots`}
+              />
+            </div>
+            <span className="metric-value text-[9px] text-ink-mute tabular-nums leading-none">
+              {b.step}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export function ProductionModule({ eventBus, masterData }: ProductionModuleProps) {
   const [lotSteps, setLotSteps] = useState<Record<string, number>>(() => {
     const m: Record<string, number> = {}
@@ -106,6 +150,17 @@ export function ProductionModule({ eventBus, masterData }: ProductionModuleProps
     }
     return n > 0 ? (sum / n) * 100 : 0
   }, [lotSteps, masterData.lots])
+
+  // Stable event stream for the hot-lot ticker (re-memo only if the bus swaps).
+  const events$ = useMemo(() => eventBus.all$(), [eventBus])
+
+  // WIP-by-route-step histogram: widest route's step count caps the strip so the
+  // columns line up with the longest process flow on the floor.
+  const stepBuckets = useMemo(() => {
+    const maxSteps = masterData.routes.reduce((m, r) => Math.max(m, r.steps.length), 1)
+    return foldWipByStep(masterData.lots, lotSteps, maxSteps)
+  }, [lotSteps, masterData.lots, masterData.routes])
+  const peak = useMemo(() => wipPeak(stepBuckets), [stepBuckets])
 
   // Steady WIP flow: advance a rotating batch of active lots each second so the
   // Progress column is visibly live regardless of which rows are scrolled into the
@@ -162,40 +217,62 @@ export function ProductionModule({ eventBus, masterData }: ProductionModuleProps
 
   return (
     <div className="flex h-full">
-      <div className="flex-1 p-4 min-w-0">
-        <Panel className="flex flex-col h-full overflow-hidden" data-tour="production.lot-table">
+      <div className="relative flex-1 min-w-0 p-4 flex flex-col gap-3 overflow-hidden">
+        <div className="bg-bloom" aria-hidden />
+
+        <ModuleHeader
+          domain="MES"
+          icon={<Boxes size={13} strokeWidth={2} />}
+          title="Production · WIP"
+          subtitle={`${masterData.lots.length.toLocaleString()} lots tracked`}
+          pills={[
+            { label: 'Avg WIP', value: <AnimatedNumber value={avgProgress} format={n => `${n.toFixed(1)}%`} />, tone: 'accent' },
+            { label: 'Moves', value: <AnimatedNumber value={moveCount} />, tone: 'info' },
+          ]}
+          right={
+            <div className="hidden lg:flex items-center gap-3">
+              <span className="flex items-center gap-1.5 text-[10px] text-ink-3">
+                <span className="w-1.5 h-1.5 rounded-full bg-ink-mute" aria-hidden />
+                Normal
+              </span>
+              <span className="flex items-center gap-1.5 text-[10px] text-warn">
+                <span className="w-1.5 h-1.5 rounded-full bg-warn" aria-hidden />
+                Hot
+              </span>
+              <span className="flex items-center gap-1.5 text-[10px] text-critical">
+                <span className="w-1.5 h-1.5 rounded-full bg-critical animate-pulse-soft" aria-hidden />
+                Super-Hot
+              </span>
+            </div>
+          }
+        />
+
+        {/* WIP-by-route-step histogram + hot-lot ticker hero strip */}
+        <Panel className="relative shrink-0 animate-rise" style={{ animationDelay: '90ms' }}>
           <PanelHeader
-            title="Production · WIP"
-            subtitle={`${masterData.lots.length.toLocaleString()} lots tracked`}
-            icon={<Boxes size={15} strokeWidth={1.9} />}
+            title="WIP by Route Step"
+            subtitle="live lot.move fold"
+            icon={<Layers size={14} strokeWidth={1.9} />}
             right={
-              <div className="flex items-center gap-4">
-                <span
-                  className="flex items-center gap-1.5 text-[10px] text-ink-3"
-                  title="Live WIP progress — advances on every lot move"
-                >
-                  <Radio size={13} strokeWidth={1.9} className="text-accent animate-pulse-soft" />
-                  <span className="font-mono metric-value text-ink-1 tabular-nums">{avgProgress.toFixed(1)}%</span>
-                  <span className="uppercase tracking-[0.12em]">avg WIP</span>
-                  <span className="font-mono text-ink-mute tabular-nums">· {moveCount.toLocaleString()} moves</span>
-                </span>
-                <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1.5 text-[10px] text-ink-3">
-                  <span className="w-1.5 h-1.5 rounded-full bg-ink-mute" aria-hidden />
-                  Normal
-                </span>
-                <span className="flex items-center gap-1.5 text-[10px] text-warn">
-                  <span className="w-1.5 h-1.5 rounded-full bg-warn" aria-hidden />
-                  Hot
-                </span>
-                <span className="flex items-center gap-1.5 text-[10px] text-critical">
-                  <span className="w-1.5 h-1.5 rounded-full bg-critical animate-pulse-soft" aria-hidden />
-                  Super-Hot
-                </span>
-                </div>
-              </div>
+              <span className="flex items-center gap-1.5 text-[10px] text-ink-3">
+                <span className="uppercase tracking-[0.12em]">peak</span>
+                <span className="metric-value text-ink-1 tabular-nums">{peak}</span>
+              </span>
             }
           />
+          <div className="px-2 pt-2 pb-1">
+            <WipHistogram buckets={stepBuckets} peak={peak} />
+          </div>
+          <div className="border-t border-edge px-1">
+            <TickerTape source$={events$} accept={['lot.move']} max={28} />
+          </div>
+        </Panel>
+
+        <Panel
+          className="relative flex flex-col flex-1 min-h-0 overflow-hidden animate-rise"
+          style={{ animationDelay: '150ms' }}
+          data-tour="production.lot-table"
+        >
           <div className="flex-1 min-h-0">
             <DenseDataTable
               data={masterData.lots}
