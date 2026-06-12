@@ -1,13 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Area, AreaChart, ResponsiveContainer, YAxis } from 'recharts'
-import { BadgeCheck, Clock, ShieldCheck, Timer, TruckIcon, AlertTriangle } from 'lucide-react'
+import {
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  YAxis,
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+} from 'recharts'
+import { BadgeCheck, Clock, ShieldCheck, Timer, TruckIcon, AlertTriangle, Trophy } from 'lucide-react'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
 import { Gauge } from '../../components/ui/Gauge'
 import { DrillInPanel } from '../../components/DrillInPanel'
+import { ModuleHeader } from '../../components/ui/ModuleHeader'
+import { AnimatedNumber } from '../../components/ui/AnimatedNumber'
+import { ChartDefs } from '../../lib/chartTheme'
 import { useUiStore } from '../../lib/uiStore'
 import { mulberry32 } from '../../data/prng'
 import { sem } from '../../lib/tokens'
 import { cn } from '../../lib/utils'
+import { compositeScore, radarAxes, podium } from './scorecardViz'
 import type { AppEvent } from '../../lib/events'
 import type { ScmModuleProps } from './types'
 import type { SupplierScorecard } from '../../data/scm/types'
@@ -107,6 +121,7 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
     <div className="h-8 -mx-1">
       <ResponsiveContainer width="100%" height={32}>
         <AreaChart data={series} margin={{ top: 2, right: 2, bottom: 0, left: 2 }}>
+          <ChartDefs />
           <defs>
             <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={color} stopOpacity={0.45} />
@@ -120,6 +135,7 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
             stroke={color}
             strokeWidth={1.75}
             fill={`url(#${gid})`}
+            filter="url(#fpGlow)"
             isAnimationActive={false}
             dot={false}
           />
@@ -144,6 +160,8 @@ function ScorecardCard({
   const onTimeColor = capColor(card.onTimePct)
   const qualityColor = capColor(card.qualityPct)
   const leadColor = capColorLowerBetter(card.avgLeadDays)
+  const composite = compositeScore(card)
+  const compositeColor = capColor(composite)
   const spark = useMemo(
     () => trendSeries(card.bpNo, card.onTimePct, 7),
     [card.bpNo, card.onTimePct],
@@ -210,7 +228,7 @@ function ScorecardCard({
         />
       </div>
 
-      {/* Trend sparkline + open-ASN count */}
+      {/* Trend sparkline + composite score + open-ASN count */}
       <div className="flex items-end gap-3">
         <div className="min-w-0 flex-1">
           <div className="text-[9px] uppercase tracking-[0.16em] text-ink-mute mb-0.5">
@@ -219,9 +237,18 @@ function ScorecardCard({
           <Sparkline data={spark} color={onTimeColor} />
         </div>
         <div className="text-right shrink-0">
+          <div className="text-[9px] uppercase tracking-[0.16em] text-ink-mute">Composite</div>
+          <div
+            className="metric-value text-lg font-semibold leading-none tabular-nums"
+            style={{ color: compositeColor, textShadow: `0 0 12px ${compositeColor}55` }}
+          >
+            <AnimatedNumber value={composite} format={n => n.toFixed(1)} />
+          </div>
+        </div>
+        <div className="text-right shrink-0">
           <div className="text-[9px] uppercase tracking-[0.16em] text-ink-mute">Open ASNs</div>
           <div className="metric-value text-lg font-semibold leading-none text-ink-1 tabular-nums">
-            {card.openAsns}
+            <AnimatedNumber value={card.openAsns} />
           </div>
         </div>
       </div>
@@ -266,6 +293,10 @@ function ScorecardDetail({ card }: { card: SupplierScorecard }) {
     },
   ]
 
+  const composite = compositeScore(card)
+  const compositeColor = capColor(composite)
+  const axes = radarAxes(card)
+
   return (
     <div className="flex flex-col gap-4">
       {atRisk && (
@@ -274,6 +305,38 @@ function ScorecardDetail({ card }: { card: SupplierScorecard }) {
           At-risk supplier — one or more metrics below target. Expedite open ASNs.
         </div>
       )}
+
+      {/* Composite score + normalized performance radar (on-time / quality / lead). */}
+      <div className="rounded-md border border-edge bg-surface-3/30 p-3">
+        <div className="flex items-center justify-between">
+          <span className="text-[9px] uppercase tracking-[0.16em] text-ink-mute">Composite Score</span>
+          <span
+            className="metric-value text-2xl font-semibold leading-none tabular-nums"
+            style={{ color: compositeColor, textShadow: `0 0 16px ${compositeColor}55` }}
+          >
+            <AnimatedNumber value={composite} format={n => n.toFixed(1)} />
+          </span>
+        </div>
+        <div className="h-44 mt-1">
+          <ResponsiveContainer width="100%" height="100%">
+            <RadarChart data={axes} margin={{ top: 8, right: 16, bottom: 8, left: 16 }}>
+              <ChartDefs />
+              <PolarGrid stroke="rgba(255,255,255,0.08)" />
+              <PolarAngleAxis dataKey="axis" tick={{ fontSize: 10, fill: '#AEBBD0' }} />
+              <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+              <Radar
+                dataKey="value"
+                stroke={ACCENT_3}
+                fill={ACCENT_3}
+                fillOpacity={0.32}
+                strokeWidth={2}
+                filter="url(#fpGlow)"
+                isAnimationActive={false}
+              />
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 gap-2">
         {rows.map(r => (
@@ -316,6 +379,71 @@ function ScorecardDetail({ card }: { card: SupplierScorecard }) {
   )
 }
 
+/** Tier podium band — top-3 suppliers on glowing pedestals, heights scaled by
+ *  composite score. Center pedestal = rank 1 (tallest), flanked by 2 and 3.
+ *  Each pedestal selects its supplier (opens the drill-in). */
+function PodiumBand({
+  entries,
+  onSelect,
+}: {
+  entries: ReturnType<typeof podium>
+  onSelect: (bpNo: string) => void
+}) {
+  // Display order: 2nd · 1st · 3rd (classic podium). Missing slots are dropped.
+  const order = [entries[1], entries[0], entries[2]].filter(Boolean)
+  const PED_COLORS = ['#C0CAD8', '#FBBF24', '#E0A06A'] // silver / gold / bronze, by rank
+  const rankOf = (bpNo: string) => entries.findIndex(e => e.bpNo === bpNo)
+  const MIN_H = 28
+  const MAX_H = 84
+
+  return (
+    <Panel className="shrink-0 animate-rise overflow-hidden" style={{ animationDelay: '60ms' }}>
+      <div className="flex items-center gap-1.5 px-3.5 pt-2.5">
+        <Trophy size={13} strokeWidth={2} className="text-warn" />
+        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-ink-3">Top Suppliers · Composite</span>
+      </div>
+      <div className="flex items-end justify-center gap-4 px-4 pb-3 pt-2" style={{ minHeight: 130 }}>
+        {order.map(entry => {
+          const rank = rankOf(entry.bpNo)
+          const color = PED_COLORS[rank] ?? '#74849E'
+          const h = MIN_H + (Math.max(0, Math.min(100, entry.score)) / 100) * (MAX_H - MIN_H)
+          return (
+            <button
+              key={entry.bpNo}
+              type="button"
+              onClick={() => onSelect(entry.bpNo)}
+              className="group flex w-28 flex-col items-center gap-1.5 text-center focus-visible:outline-none"
+            >
+              <span className="text-[10px] font-semibold text-ink-1 truncate w-full" title={entry.name}>
+                {entry.name}
+              </span>
+              <span
+                className="metric-value text-lg font-semibold leading-none tabular-nums"
+                style={{ color, textShadow: `0 0 14px ${color}66` }}
+              >
+                <AnimatedNumber value={entry.score} format={n => n.toFixed(1)} />
+              </span>
+              <div
+                className="w-full rounded-t-md border-t border-x transition-all"
+                style={{
+                  height: h,
+                  background: `linear-gradient(180deg, ${color}33, ${color}0d)`,
+                  borderColor: `${color}66`,
+                  boxShadow: `0 0 16px -2px ${color}55, inset 0 1px 0 ${color}55`,
+                }}
+              >
+                <span className="flex h-full items-start justify-center pt-1.5 text-[13px] font-bold" style={{ color }}>
+                  {rank + 1}
+                </span>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </Panel>
+  )
+}
+
 export function SupplierScorecardsModule({ scmData, eventBus }: ScmModuleProps) {
   const selectEntity = useUiStore(s => s.selectEntity)
   const selectedEntity = useUiStore(s => s.selectedEntity)
@@ -340,13 +468,38 @@ export function SupplierScorecardsModule({ scmData, eventBus }: ScmModuleProps) 
       : null
 
   const atRiskCount = useMemo(() => scorecards.filter(isAtRisk).length, [scorecards])
+  const healthyCount = scorecards.length - atRiskCount
+  const top3 = useMemo(() => podium(scorecards, 3), [scorecards])
 
   return (
-    <div className="h-full p-4">
-      <Panel className="h-full flex flex-col">
+    <div className="relative h-full p-4 flex flex-col gap-3">
+      <div className="bg-bloom" aria-hidden />
+
+      {/* Cinematic module identity — fleet health folds into live pills. */}
+      <ModuleHeader
+        className="shrink-0 animate-rise"
+        domain="SCM"
+        icon={<BadgeCheck size={13} strokeWidth={2} />}
+        title="Supplier Scorecards"
+        subtitle="On-time · quality · lead time — supply-network collaboration"
+        pills={[
+          { label: 'Suppliers', value: <AnimatedNumber value={scorecards.length} />, tone: 'info' },
+          { label: 'Healthy', value: <AnimatedNumber value={healthyCount} />, tone: 'success' },
+          {
+            label: 'At Risk',
+            value: <AnimatedNumber value={atRiskCount} />,
+            tone: atRiskCount > 0 ? 'critical' : 'success',
+          },
+        ]}
+      />
+
+      {/* Tier podium — top-3 suppliers on glowing pedestals (heights by composite). */}
+      {top3.length > 0 && <PodiumBand entries={top3} onSelect={bpNo => selectEntity({ type: 'supplierScorecard', id: bpNo })} />}
+
+      <Panel className="flex-1 min-h-0 flex flex-col animate-rise" style={{ animationDelay: '120ms' }}>
         <PanelHeader
-          title="Supplier Scorecards"
-          subtitle="On-time · quality · lead time — supply-network collaboration"
+          title="Fleet"
+          subtitle={`${scorecards.length} suppliers · click a card for the full scorecard`}
           icon={<BadgeCheck size={15} strokeWidth={1.9} />}
           right={
             <span className="flex items-center gap-3 text-[10px] font-mono">

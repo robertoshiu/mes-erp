@@ -1,14 +1,22 @@
-import { useEffect, useMemo, useReducer, useState } from 'react'
-import { Ship, Plane, Truck, ArrowRight, PackageCheck, Radio } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
+import { Ship, Plane, Truck, ArrowRight, PackageCheck, Radio, Activity } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Panel, PanelHeader } from '../../components/ui/Panel'
 import { DenseDataTable, type Column } from '../../components/DenseDataTable'
 import { DrillInPanel } from '../../components/DrillInPanel'
+import { ModuleHeader } from '../../components/ui/ModuleHeader'
+import { AnimatedNumber } from '../../components/ui/AnimatedNumber'
+import { DonutSpark } from '../../components/ui/DonutSpark'
+import { RankBar } from '../../components/ui/RankBar'
+import { Heatbar } from '../../components/ui/Heatbar'
+import { TickerTape } from '../../components/ui/TickerTape'
 import { useUiStore } from '../../lib/uiStore'
 import { useShipments } from '../../lib/useShipments'
 import { shipmentPosition } from '../../data/scm/shipmentPosition'
 import { LOOP_DURATION_S } from '../../lib/clock'
+import { chartSeries } from '../../lib/tokens'
 import { cn } from '../../lib/utils'
+import { modeSplit, busiestLanes } from './shipmentsViz'
 import type { ScmModuleProps } from './types'
 import type {
   Shipment,
@@ -226,10 +234,10 @@ function ShipmentsTable({
 
   return (
     <div className="flex h-full">
-      <div className="min-w-0 flex-1 p-4">
+      <div className="min-w-0 flex-1">
         <Panel className="flex h-full flex-col overflow-hidden" data-tour="shipments.table">
           <PanelHeader
-            title="Shipments / In-Transit"
+            title="In-Transit Manifest"
             subtitle={subtitle}
             icon={<Ship size={15} strokeWidth={1.9} />}
             right={headerRight}
@@ -290,7 +298,7 @@ export function ShipmentsModule({ scmData, eventBus }: ScmModuleProps) {
     return m
   }, [lanes])
 
-  const nodeName = (id: string) => nodeById.get(id)?.name ?? id
+  const nodeName = useCallback((id: string) => nodeById.get(id)?.name ?? id, [nodeById])
 
   useEffect(() => {
     const subs = [
@@ -321,6 +329,15 @@ export function ShipmentsModule({ scmData, eventBus }: ScmModuleProps) {
   const lateCount = shipments.filter(
     s => s.status === 'in-transit' && (posByShipment.get(s.shipmentNo) ?? 0) >= 1,
   ).length
+
+  // Lane-mode lookup → deterministic mode split + busiest-lanes ranking (pure helpers).
+  const modeByLane = useMemo(() => {
+    const m = new Map<string, LaneMode>()
+    for (const l of lanes) m.set(l.id, l.mode)
+    return m
+  }, [lanes])
+  const split = useMemo(() => modeSplit(shipments, modeByLane), [shipments, modeByLane])
+  const topLanes = useMemo(() => busiestLanes(shipments, nodeName, 5), [shipments, nodeName])
 
   const columns: Column<Shipment>[] = useMemo(() => [
     {
@@ -379,12 +396,26 @@ export function ShipmentsModule({ scmData, eventBus }: ScmModuleProps) {
       sortFn: (a, b) => a.status.localeCompare(b.status),
     },
     {
-      key: 'eta', header: 'ETA', width: 80,
-      render: r => (
-        <span className="block w-full text-right metric-value tabular-nums text-ink-2">
-          {etaLabel(r, posByShipment.get(r.shipmentNo) ?? 0, loopT)}
-        </span>
-      ),
+      key: 'eta', header: 'ETA', width: 132,
+      render: r => {
+        const pos = posByShipment.get(r.shipmentNo) ?? 0
+        const done = r.status === 'arrived' || r.status === 'delivered'
+        // Elapsed-of-transit ratio → Heatbar; late legs (pos≥1) read critical via tone:auto inversion.
+        const ratio = done ? 1 : Math.max(0, Math.min(1, pos))
+        return (
+          <div className="flex w-full items-center gap-1.5">
+            <Heatbar
+              value={Math.round(ratio * 100)}
+              max={100}
+              tone={r.status === 'in-transit' && pos >= 1 ? 'critical' : 'accent'}
+              className="min-w-12 flex-1"
+            />
+            <span className="w-9 shrink-0 text-right font-mono text-[9px] tabular-nums text-ink-3">
+              {etaLabel(r, pos, loopT)}
+            </span>
+          </div>
+        )
+      },
       sortFn: (a, b) => a.departureT + a.transitSeconds - (b.departureT + b.transitSeconds),
     },
     {
@@ -392,7 +423,7 @@ export function ShipmentsModule({ scmData, eventBus }: ScmModuleProps) {
       render: r => <ShipProgress pos={posByShipment.get(r.shipmentNo) ?? 0} status={r.status} />,
       sortFn: (a, b) => (posByShipment.get(a.shipmentNo) ?? 0) - (posByShipment.get(b.shipmentNo) ?? 0),
     },
-  ], [laneById, nodeById, posByShipment, loopT])
+  ], [laneById, nodeName, posByShipment, loopT])
 
   const headerRight = (
     <div className="flex items-center gap-3 text-[10px]">
@@ -473,29 +504,131 @@ export function ShipmentsModule({ scmData, eventBus }: ScmModuleProps) {
     )
   }
 
+  // Module identity strip — folds the screen header into ModuleHeader (live pills).
+  const moduleHeader = (
+    <ModuleHeader
+      className="shrink-0 animate-rise"
+      domain="SCM"
+      icon={<Ship size={13} strokeWidth={2} />}
+      title="Shipments · In-Transit"
+      subtitle="Live logistics manifest — inbound PO + outbound lot legs in flight"
+      pills={[
+        { label: 'In Flight', value: <AnimatedNumber value={shipments.length} />, tone: 'accent' },
+        { label: 'In Transit', value: <AnimatedNumber value={inTransit} />, tone: 'info' },
+        {
+          label: 'Late',
+          value: <AnimatedNumber value={lateCount} />,
+          tone: lateCount > 0 ? 'warn' : 'success',
+        },
+        {
+          label: 'Disrupted',
+          value: <AnimatedNumber value={disruptedLanes.size} />,
+          tone: disruptedLanes.size > 0 ? 'critical' : 'info',
+        },
+      ]}
+    />
+  )
+
   if (shipments.length === 0) {
     return (
-      <div className="flex h-full flex-col p-4">
-        <ShipmentsEmpty />
+      <div className="relative flex h-full flex-col gap-3 p-4">
+        <div className="bg-bloom" aria-hidden />
+        {moduleHeader}
+        <div className="min-h-0 flex-1">
+          <ShipmentsEmpty />
+        </div>
       </div>
     )
   }
 
+  // Mode-split band — three glowing DonutSparks (air/sea/truck) + busiest-lanes RankBar.
+  const MODE_META: { key: 'air' | 'sea' | 'truck'; label: string; color: string; icon: ReactNode }[] = [
+    { key: 'air', label: 'Air', color: chartSeries[1], icon: <Plane size={12} strokeWidth={2} /> },
+    { key: 'sea', label: 'Sea', color: chartSeries[2], icon: <Ship size={12} strokeWidth={2} /> },
+    { key: 'truck', label: 'Truck', color: chartSeries[3], icon: <Truck size={12} strokeWidth={2} /> },
+  ]
+  const modeBand = (
+    <div
+      className="grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-[auto_1fr] animate-rise"
+      style={{ animationDelay: '60ms' }}
+    >
+      <Panel className="flex items-center gap-4 px-4 py-2.5">
+        <DonutSpark
+          size={68}
+          segments={MODE_META.map(m => ({ value: split[m.key], color: m.color, label: m.label }))}
+          centerValue={<AnimatedNumber value={split.total} />}
+          centerLabel="legs"
+        />
+        <div className="flex flex-col gap-1.5">
+          {MODE_META.map(m => (
+            <span key={m.key} className="inline-flex items-center gap-2 text-[11px]">
+              <span className="flex items-center" style={{ color: m.color }}>{m.icon}</span>
+              <span className="w-9 text-ink-2">{m.label}</span>
+              <span
+                className="metric-value font-semibold tabular-nums text-ink-1"
+                style={{ textShadow: `0 0 10px ${m.color}55` }}
+              >
+                <AnimatedNumber value={split[m.key]} />
+              </span>
+            </span>
+          ))}
+        </div>
+      </Panel>
+      <Panel className="flex min-w-0 flex-col px-4 py-2.5">
+        <span className="mb-1.5 inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-accent-2/80">
+          <Activity size={11} strokeWidth={2.2} />
+          Busiest Lanes
+        </span>
+        {topLanes.length > 0 ? (
+          <RankBar
+            items={topLanes.map(l => ({ label: l.label, value: l.count, hint: `${l.count === 1 ? 'leg' : 'legs'}` }))}
+            tone="accent"
+            formatValue={n => `${n}`}
+          />
+        ) : (
+          <span className="text-[11px] text-ink-3">No active lanes.</span>
+        )}
+      </Panel>
+    </div>
+  )
+
+  // Live arrival/delivery ticker (subscribe-before-emit handled inside TickerTape).
+  const arrivalTicker = (
+    <Panel
+      className="shrink-0 overflow-hidden px-3 py-1 animate-rise"
+      style={{ animationDelay: '120ms' }}
+    >
+      <TickerTape
+        source$={eventBus.all$()}
+        accept={['scm.shipment.arrived', 'scm.shipment.delivered', 'scm.shipment.departed']}
+        max={24}
+      />
+    </Panel>
+  )
+
   return (
-    <ShipmentsTable
-      data={shipments}
-      columns={columns}
-      headerRight={headerRight}
-      subtitle={subtitle}
-      renderDetail={renderDetail}
-      detailSubtitle={r => `${nodeName(r.fromNode)} → ${nodeName(r.toNode)}`}
-      rowClassName={r =>
-        disruptedLanes.has(r.laneId)
-          ? 'row-superhot'
-          : r.status === 'in-transit' && (posByShipment.get(r.shipmentNo) ?? 0) >= 1
-            ? 'row-hot'
-            : undefined
-      }
-    />
+    <div className="relative flex h-full flex-col gap-3 p-4">
+      <div className="bg-bloom" aria-hidden />
+      {moduleHeader}
+      {modeBand}
+      {arrivalTicker}
+      <div className="min-h-0 flex-1 animate-rise" style={{ animationDelay: '180ms' }}>
+        <ShipmentsTable
+          data={shipments}
+          columns={columns}
+          headerRight={headerRight}
+          subtitle={subtitle}
+          renderDetail={renderDetail}
+          detailSubtitle={r => `${nodeName(r.fromNode)} → ${nodeName(r.toNode)}`}
+          rowClassName={r =>
+            disruptedLanes.has(r.laneId)
+              ? 'row-superhot'
+              : r.status === 'in-transit' && (posByShipment.get(r.shipmentNo) ?? 0) >= 1
+                ? 'row-hot'
+                : undefined
+          }
+        />
+      </div>
+    </div>
   )
 }
