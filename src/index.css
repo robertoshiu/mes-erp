@@ -15,6 +15,8 @@
     --font-heading: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
     --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+    /* Industrial HUD display face — ModuleHeader titles + opt-in .text-display */
+    --font-display: 'Chakra Petch', 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
 
     /* --- Command-center semantic palette (drives bg-, text-, border- utilities) --- */
     --color-canvas: var(--canvas);
@@ -301,6 +303,53 @@
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.01em;
   }
+
+  /* Display face — squared industrial HUD title (ModuleHeader, opt-in headers) */
+  .text-display {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+  }
+
+  /* Ambient radial bloom layers — drop into a relative container as the first
+     child; pointer-events-none so they never intercept interaction. Two tints
+     anchored to opposite corners give the screen atmospheric depth. */
+  .bg-bloom,
+  .bg-bloom-2 {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .bg-bloom {
+    background:
+      radial-gradient(620px 320px at 8% -6%, rgba(34, 211, 238, 0.10), transparent 60%),
+      radial-gradient(560px 300px at 100% 0%, rgba(129, 140, 248, 0.08), transparent 58%);
+  }
+  .bg-bloom-2 {
+    background:
+      radial-gradient(560px 320px at 100% 110%, rgba(56, 189, 248, 0.08), transparent 60%),
+      radial-gradient(480px 280px at -4% 100%, rgba(52, 211, 153, 0.06), transparent 58%);
+  }
+
+  /* Domain identity chip (ModuleHeader). Color is supplied inline per-domain via
+     currentColor; this just carries the shape, tracking + glowing hairline. */
+  .chip-domain {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.375rem;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    line-height: 1;
+    border: 1px solid color-mix(in srgb, currentColor 40%, transparent);
+    background: color-mix(in srgb, currentColor 14%, transparent);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, currentColor 18%, transparent),
+      0 0 16px -4px currentColor;
+  }
 }
 
 /* ============================================================================
@@ -394,15 +443,52 @@
   pointer-events: none;
 }
 
+/* Shimmer — slow gradient sweep along ModuleHeader hairlines / accent rules.
+   The element should carry its own gradient with background-size 200%. */
+@keyframes fp-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.animate-shimmer {
+  background-size: 200% 100%;
+  animation: fp-shimmer 5s linear infinite;
+}
+
+/* Ticker marquee — translate a duplicated track left by half its width so the
+   loop is seamless. TickerTape renders two copies of the item row. */
+@keyframes fp-ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-ticker { animation: fp-ticker 28s linear infinite; }
+/* Hover pause for the live ticker (CSS-only). */
+.ticker-pausable:hover .animate-ticker { animation-play-state: paused; }
+
+/* Bar grow — horizontal scale-in for RankBar / Heatbar fills on mount. The
+   element must set transform-origin:left and its own animation-delay for stagger. */
+@keyframes fp-bar-grow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.animate-bar-grow {
+  transform-origin: left center;
+  animation: fp-bar-grow 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse-glow,
   .animate-pulse-soft,
   .animate-sonar,
   .animate-marching-ants,
   .animate-blink,
+  .animate-shimmer,
+  .animate-ticker,
+  .animate-bar-grow,
   .row-hot,
   .row-superhot,
   .scan-sweep::after { animation: none !important; }
+  /* Bars must land at full width even with the grow animation suppressed. */
+  .animate-bar-grow { transform: scaleX(1); }
 }
 
 /* Recharts: make default text inherit dark theme tones */

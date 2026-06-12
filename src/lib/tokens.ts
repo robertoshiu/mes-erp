@@ -84,3 +84,23 @@ export const glow = {
   sky: 'rgba(56, 189, 248, 0.5)',
   indigo: 'rgba(129, 140, 248, 0.5)',
 } as const
+
+// Per-domain accent identity for ModuleHeader / domain chips:
+// MES = electric cyan, ERP = indigo, SCM = sky, HELP = emerald success.
+export type Domain = 'MES' | 'ERP' | 'SCM' | 'HELP'
+
+export interface DomainTone {
+  /** Primary accent hex. */
+  color: string
+  /** Soft halo (rgba) for glow effects. */
+  glow: string
+  /** Short label rendered inside the domain chip. */
+  label: string
+}
+
+export const domainTone: Record<Domain, DomainTone> = {
+  MES: { color: brand.primary, glow: glow.cyan, label: 'MES' },     // electric cyan
+  ERP: { color: brand.tertiary, glow: glow.indigo, label: 'ERP' },  // indigo
+  SCM: { color: brand.secondary, glow: glow.sky, label: 'SCM' },    // sky
+  HELP: { color: sem.success, glow: e10Glow.PROD, label: 'HELP' },  // emerald
+} as const
