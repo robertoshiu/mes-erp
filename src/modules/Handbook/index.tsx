@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BookOpen, Search, ExternalLink, Compass, Link2 } from 'lucide-react'
 import { Panel } from '../../components/ui/Panel'
+import { ModuleHeader } from '../../components/ui/ModuleHeader'
+import { SparkRing } from '../../components/ui/SparkRing'
 import { useUiStore } from '../../lib/uiStore'
 import { cn } from '../../lib/utils'
 import { useTourStore } from '../../tour/tourStore'
@@ -87,7 +89,25 @@ export default function Handbook() {
 
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string>('fab-floor')
+  // Per-session "read" progress: entry ids the operator has opened. Drives the
+  // chapter-progress SparkRings in the nav (visited / total per domain).
+  const [visited, setVisited] = useState<Set<string>>(() => new Set(['fab-floor']))
   const searchRef = useRef<HTMLInputElement>(null)
+
+  // Select an entry and mark it read in the same event-handler tick — keeping
+  // the "visited" set in lockstep with selection without setting state inside an
+  // effect (the read progress drives the chapter SparkRings in the nav).
+  const selectEntry = useCallback((id: string) => {
+    setSelectedId(id)
+    setVisited(prev => (prev.has(id) ? prev : new Set(prev).add(id)))
+  }, [])
+
+  // Total entries per domain (denominator for the progress rings), all entries.
+  const domainTotals = useMemo(() => {
+    const m = new Map<HandbookEntry['domain'], number>()
+    for (const e of handbookEntries) m.set(e.domain, (m.get(e.domain) ?? 0) + 1)
+    return m
+  }, [])
 
   // Precompute haystacks once.
   const haystacks = useMemo(() => {
@@ -158,7 +178,19 @@ export default function Handbook() {
   const tourAvailable = pageTour !== null
 
   return (
-    <div className="flex h-full gap-4 p-4 bg-canvas animate-rise">
+    <div className="flex flex-col h-full gap-4 p-4 bg-canvas bg-bloom animate-rise">
+      <ModuleHeader
+        title={UI.title.en}
+        subtitle={UI.title.zh + ' · FabPulse'}
+        domain="HELP"
+        icon={<BookOpen size={13} strokeWidth={2} />}
+        pills={[
+          { label: 'Entries', value: handbookEntries.length, tone: 'info' },
+          { label: 'Read', value: visited.size, tone: 'success' },
+        ]}
+      />
+
+      <div className="flex flex-1 min-h-0 gap-4">
       {/* ─────────────── Left pane: search + nav ─────────────── */}
       <Panel className="w-[260px] shrink-0 flex flex-col overflow-hidden">
         <div className="flex items-center gap-2.5 px-3.5 py-2.5 border-b border-edge">
@@ -197,10 +229,22 @@ export default function Handbook() {
               {UI.noResults[lang]}
             </div>
           )}
-          {grouped.map(({ domain, entries }) => (
+          {grouped.map(({ domain, entries }) => {
+            const total = domainTotals.get(domain) ?? entries.length
+            const read = entries.reduce((acc, e) => acc + (visited.has(e.id) ? 1 : 0), 0)
+            return (
             <div key={domain}>
-              <div className="px-3.5 pt-2.5 pb-1 text-[9px] font-bold uppercase tracking-[0.22em] text-ink-mute">
-                {DOMAIN_LABEL[domain]}
+              <div className="flex items-center gap-2 px-3.5 pt-2.5 pb-1">
+                <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-ink-mute">
+                  {DOMAIN_LABEL[domain]}
+                </span>
+                <span
+                  className="ml-auto flex items-center gap-1"
+                  title={`${read} / ${total} read`}
+                >
+                  <SparkRing value={read} max={total} size={16} tone="auto" />
+                  <span className="font-mono text-[9px] text-ink-mute tabular-nums">{read}/{total}</span>
+                </span>
               </div>
               {entries.map(e => {
                 const active = selected?.id === e.id
@@ -208,7 +252,7 @@ export default function Handbook() {
                   <button
                     key={e.id}
                     type="button"
-                    onClick={() => setSelectedId(e.id)}
+                    onClick={() => selectEntry(e.id)}
                     aria-current={active ? 'true' : undefined}
                     className={cn(
                       'group relative w-full text-left pl-4 pr-3 py-2 border-b border-edge/50 cursor-pointer transition-colors',
@@ -232,7 +276,8 @@ export default function Handbook() {
                 )
               })}
             </div>
-          ))}
+            )
+          })}
         </div>
       </Panel>
 
@@ -334,7 +379,7 @@ export default function Handbook() {
                         <button
                           key={rid}
                           type="button"
-                          onClick={() => setSelectedId(rid)}
+                          onClick={() => selectEntry(rid)}
                           className="group inline-flex items-center gap-1 rounded-md border border-edge bg-surface-3/40 px-2 py-1 text-[11px] text-ink-2 hover:text-accent hover:border-accent/40 cursor-pointer transition-colors"
                         >
                           <Link2 size={11} strokeWidth={2} className="text-ink-mute group-hover:text-accent transition-colors" />
@@ -349,6 +394,7 @@ export default function Handbook() {
           </>
         )}
       </Panel>
+      </div>
     </div>
   )
 }
