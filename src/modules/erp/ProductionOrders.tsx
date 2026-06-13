@@ -384,7 +384,7 @@ function GanttStrip({
   const innerW = 100 - padX * 2 // viewBox is 0..100 horizontally
   const height = Math.max(1, bars.length) * (rowH + gap)
   return (
-    <Panel className="overflow-hidden">
+    <Panel className="overflow-hidden" data-tour="production-orders.gantt">
       <PanelHeader
         title="Order Timeline"
         subtitle="Scheduled run windows · status-toned"

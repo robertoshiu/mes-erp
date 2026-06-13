@@ -142,6 +142,7 @@ export function FinanceModule({ erpData, eventBus }: ErpModuleProps) {
         <Panel
           className="animate-rise relative overflow-hidden p-4"
           style={{ animationDelay: '40ms' }}
+          data-tour="finance.cashband"
         >
           <div className="grid grid-cols-1 items-center gap-4 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
             {/* A/R gauge */}

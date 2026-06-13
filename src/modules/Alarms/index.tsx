@@ -225,7 +225,11 @@ export function AlarmsModule({ eventBus, clock }: AlarmsModuleProps) {
 
         {/* Analytics hero — severity area trend + open/MTTA tiles + pareto-by-tool */}
         <div className="grid grid-cols-[1fr_auto] gap-4 shrink-0">
-          <Panel className="relative overflow-hidden animate-rise" style={{ animationDelay: '90ms' }}>
+          <Panel
+            className="relative overflow-hidden animate-rise"
+            style={{ animationDelay: '90ms' }}
+            data-tour="alarms.trend"
+          >
             <PanelHeader
               title="Severity Trend"
               subtitle="rolling window · stacked"

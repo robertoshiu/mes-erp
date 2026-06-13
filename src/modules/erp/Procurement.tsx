@@ -268,7 +268,7 @@ export function ProcurementModule({ erpData, eventBus }: ErpModuleProps) {
 
         {/* PO pipeline band + vendor on-time rank */}
         <div className="flex gap-3 shrink-0">
-          <Panel className="flex-1 min-w-0 animate-rise overflow-hidden" style={{ animationDelay: '100ms' }}>
+          <Panel className="flex-1 min-w-0 animate-rise overflow-hidden" style={{ animationDelay: '100ms' }} data-tour="procurement.pipeline">
             <PanelHeader
               title="PO Pipeline"
               subtitle="Open → In-Transit → Received"

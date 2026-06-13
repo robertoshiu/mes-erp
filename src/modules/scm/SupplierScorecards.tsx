@@ -397,7 +397,7 @@ function PodiumBand({
   const MAX_H = 84
 
   return (
-    <Panel className="shrink-0 animate-rise overflow-hidden" style={{ animationDelay: '60ms' }}>
+    <Panel className="shrink-0 animate-rise overflow-hidden" data-tour="supplier-scorecards.podium" style={{ animationDelay: '60ms' }}>
       <div className="flex items-center gap-1.5 px-3.5 pt-2.5">
         <Trophy size={13} strokeWidth={2} className="text-warn" />
         <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-ink-3">Top Suppliers · Composite</span>

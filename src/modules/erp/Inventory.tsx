@@ -277,7 +277,7 @@ export function InventoryModule({ erpData, eventBus }: ErpModuleProps) {
         />
 
         {/* Hero occupancy mosaic + live movement ticker */}
-        <Panel className="shrink-0 animate-rise overflow-hidden" style={{ animationDelay: '100ms' }}>
+        <Panel className="shrink-0 animate-rise overflow-hidden" style={{ animationDelay: '100ms' }} data-tour="inventory.mosaic">
           <PanelHeader
             title="Storage Occupancy"
             subtitle={locFilter ? `Filtered · ${locFilter}` : 'Fill intensity = on-hand share · click a tile to filter'}
