@@ -64,7 +64,7 @@ function collectDataTourTargets(dir: string, acc: Set<string>): Set<string> {
     // string literals, not as rendered attributes.
     if (full.includes(path.join('tour', 'tours'))) continue
     const src = readFileSync(full, 'utf8')
-    // Matches both <div data-tour="x"> and the MasterDataModule dataTour="x" prop.
+    // Matches both <div data-tour="x"> and any component's dataTour="x" prop.
     const re = /\bdata-?[Tt]our=["']([^"']+)["']/g
     let m: RegExpExecArray | null
     while ((m = re.exec(src)) !== null) {
