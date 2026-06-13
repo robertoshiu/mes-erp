@@ -483,7 +483,7 @@ export function DemandPlanningModule({ scmData, eventBus }: ScmModuleProps) {
       {/* Hero seasonality heatmap — top SKUs × buckets, each row normalized to its
           own peak forecast bucket so the seasonal shape reads per-SKU. */}
       {heatRows.length > 0 && bucketCount > 0 && (
-        <Panel className="shrink-0 flex flex-col overflow-hidden animate-rise" style={{ animationDelay: '120ms' }}>
+        <Panel className="shrink-0 flex flex-col overflow-hidden animate-rise" data-tour="demand-planning.heatmap" style={{ animationDelay: '120ms' }}>
           <PanelHeader
             title="Seasonality Heatmap"
             subtitle={`Top ${heatRows.length} SKUs × ${bucketCount}-week horizon · forecast intensity`}

@@ -248,7 +248,11 @@ export function ProductionModule({ eventBus, masterData }: ProductionModuleProps
         />
 
         {/* WIP-by-route-step histogram + hot-lot ticker hero strip */}
-        <Panel className="relative shrink-0 animate-rise" style={{ animationDelay: '90ms' }}>
+        <Panel
+          className="relative shrink-0 animate-rise"
+          style={{ animationDelay: '90ms' }}
+          data-tour="production.wip-strip"
+        >
           <PanelHeader
             title="WIP by Route Step"
             subtitle="live lot.move fold"

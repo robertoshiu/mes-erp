@@ -334,7 +334,11 @@ export function EquipmentModule({ eventBus, masterData }: EquipmentModuleProps) 
 
         {/* Hero: bay×tool mosaic + OEE/uptime rank pair */}
         <div className="grid grid-cols-[1fr_auto] gap-3 shrink-0">
-          <Panel className="relative overflow-hidden animate-rise" style={{ animationDelay: '90ms' }}>
+          <Panel
+            className="relative overflow-hidden animate-rise"
+            style={{ animationDelay: '90ms' }}
+            data-tour="equipment.mosaic"
+          >
             <PanelHeader
               title="Fab Floor"
               subtitle="bay × tool · E10 state"

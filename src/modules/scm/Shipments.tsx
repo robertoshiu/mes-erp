@@ -552,6 +552,7 @@ export function ShipmentsModule({ scmData, eventBus }: ScmModuleProps) {
     <div
       className="grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-[auto_1fr] animate-rise"
       style={{ animationDelay: '60ms' }}
+      data-tour="shipments.modes"
     >
       <Panel className="flex items-center gap-4 px-4 py-2.5">
         <DonutSpark
