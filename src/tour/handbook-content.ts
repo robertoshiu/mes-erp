@@ -100,8 +100,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The Production page tracks every work-in-process lot — the basis for floor scheduling and hot-lot decisions. Each row shows product, customer, route, progress and priority; expedite lots (**hot** / **super-hot**) pulse to draw the eye.',
       },
       {
-        zh: '主面板是密集批次表 (`DenseDataTable`)，含發光的進度條與優先級晶片；標題列顯示**平均 WIP 進度**與累計移動數。點選任一列開啟右側 **Drill-In** 詳情，內含路線步驟與批次族譜 (parent/child)。',
-        en: 'The main panel is a dense lot table with glowing progress bars and priority chips; the header shows **average WIP progress** and a running move count. Selecting a row opens the **Drill-In** detail panel with route steps and lot genealogy (parent/child).',
+        zh: '表格上方有一條 **WIP 直方圖帶**：每根長條的高度是該製程途程步驟上的批次數，隨 `lot.move` 即時折算，下方並帶一條 hot-lot 跑馬燈。主面板是密集批次表 (`DenseDataTable`)，含發光的進度條與優先級晶片；標題列顯示**平均 WIP 進度**與累計移動數。點選任一列開啟右側 **Drill-In** 詳情，內含路線步驟與批次族譜 (parent/child)。',
+        en: 'A **WIP-by-route-step histogram strip** sits above the table — each bar’s height is the lot count at that route step, folded live from `lot.move`, with a hot-lot ticker beneath it. The main panel is a dense lot table with glowing progress bars and priority chips; the header shows **average WIP progress** and a running move count. Selecting a row opens the **Drill-In** detail panel with route steps and lot genealogy (parent/child).',
       },
       {
         zh: '點選批次列即選中該批次並開啟詳情；在 Drill-In 內點選父批或子批可跳轉。進度欄會持續推進——背景每秒輪流推進一批活躍批次，使看板永遠呈現流動狀態，而非凍結。',
@@ -128,8 +128,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The Equipment page monitors every tool against the **SEMI E10** standard state model — the foundation for utilization and downtime analysis. States span PROD, STBY (standby), SDT (scheduled downtime), UDT (unscheduled downtime), NSC (non-scheduled), ENG (engineering) and OUT.',
       },
       {
-        zh: '標題列有即時 **E10 狀態分布條**，按比例顯示各狀態機台數；主面板是機台清單，狀態欄以發光圓點呈現，SDT/UDT 會脈動。選取機台後 Drill-In 顯示目前狀態與一個 **SECS 訊息台**——以打字機效果逐字播放狀態轉移與配方載入訊息。',
-        en: 'The header carries a live **E10 state-distribution bar** showing the share of tools in each state; the main panel is the tool roster with a glowing state dot per row (SDT/UDT pulse). Selecting a tool opens a Drill-In with its current state and a **SECS message console** that types out state transitions and recipe loads like a live terminal.',
+        zh: '頂部是一張 **Bay × Tool 馬賽克**：每台機台一格，顏色就是它即時的 E10 狀態，停機格脈動，收到 `equip.state` 事件時對應格子即時換色 (retint)，點任一格即選取該機台。標題列另有即時 **E10 狀態分布條**（按比例顯示各狀態機台數）與一條依稼動率排名的 **uptime RankBar**；主面板是機台清單，狀態欄以發光圓點呈現、SDT/UDT 脈動，每列帶一條稼動率 **Heatbar** 細胞。選取機台後 Drill-In 顯示目前狀態與一個 **SECS 訊息台**——以打字機效果逐字播放狀態轉移與配方載入訊息。',
+        en: 'Up top is a **bay × tool mosaic**: one tile per tool colored by its live E10 state, down-state tiles pulsing, each tile retinting in place on an `equip.state` event; click a tile to select that tool. The header also carries a live **E10 state-distribution bar** (the share of tools in each state) and an **uptime RankBar** ranking the fleet by availability; the main panel is the tool roster with a glowing state dot per row (SDT/UDT pulse) and an uptime **Heatbar** of cells. Selecting a tool opens a Drill-In with its current state and a **SECS message console** that types out state transitions and recipe loads like a live terminal.',
       },
       {
         zh: '點選機台列開啟 Drill-In 並清空 SECS 台，之後僅該機台的事件會逐筆打字顯示。狀態分布條無需點選即時更新；脈動圓點代表需要關注的停機機台。',
@@ -156,8 +156,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The SPC page is the statistical process-control desk. It tracks a process — **CD uniformity (nm)** in the demo — against control limits and flags **Western-Electric rule** violations in real time.',
       },
       {
-        zh: '頂部四格摘要顯示 Current CD、違規數、**Cp** 與 **Cpk**（依能力上色：≥1.33 綠、≥1.0 黃、否則紅）。中央是即時管制圖，標出 UCL/LCL/CL 參考線，違規點以發光玫紅標記；下方違規記錄列出各筆違規的法則編號與量測值。',
-        en: 'A four-tile summary shows Current CD, violation count, **Cp** and **Cpk** (color-gated: ≥1.33 emerald, ≥1.0 amber, else rose). The central live control chart marks UCL/LCL/CL reference lines with violation points glowing rose; a violation log below lists each violation\'s rule number and measured value.',
+        zh: '頂部四格摘要顯示 Current CD、違規數、**Cp** 與 **Cpk**（依能力上色：≥1.33 綠、≥1.0 黃、否則紅），Cp/Cpk 各配一枚 spark 環，旁邊並有一張 **CD 分佈直方圖**對照規格界限。中央是即時管制圖，除 UCL/LCL/CL 參考線外還以 **±1σ / 2σ / 3σ 區帶**分層著色（離中心線越遠越深），違規點以發光玫紅標記；下方違規記錄列出各筆違規的法則編號與量測值。',
+        en: 'A four-tile summary shows Current CD, violation count, **Cp** and **Cpk** (color-gated: ≥1.33 emerald, ≥1.0 amber, else rose), each capability tile carrying a spark ring, with a **CD-distribution histogram** beside them spread against the spec limits. The central live control chart marks UCL/LCL/CL reference lines and shades **±1σ / 2σ / 3σ zone bands** (darker further from the centerline), with violation points glowing rose; a violation log below lists each violation\'s rule number and measured value.',
       },
       {
         zh: '此頁為即時監看，無需互動。管制點隨產線流入；進入頁面時會由環形緩衝區回填最近 100 點，因此不會看到空白圖。違規記錄為新到優先。三種法則：1 = 單點越過 3σ；2 = 連續 9 點同側；4 = 連續 14 點交替。',
@@ -184,8 +184,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'Recipe Management is the single source of truth for process recipes, browsable grouped by tool type with full version control and a change audit trail — the heart of management-of-change (MOC).',
       },
       {
-        zh: '左側是依 LITHO/ETCH/CMP/CVD/PVD/INSP 分組的**配方庫**清單；右側顯示選取配方的參數表、最新變更摘要 (依語意判定 MAJOR/MINOR/PATCH)，以及 **commit-graph 版本歷史**時間軸，標出作者、時間戳與變更說明。',
-        en: 'The left pane is the **recipe library** grouped by LITHO/ETCH/CMP/CVD/PVD/INSP; the right pane shows the selected recipe\'s parameter table, a latest-change summary (semantically classified MAJOR/MINOR/PATCH), and a **commit-graph version-history** timeline with author, timestamp and change note.',
+        zh: '左側是依 LITHO/ETCH/CMP/CVD/PVD/INSP 分組的**配方庫**清單，並有一條依被引用次數排名的使用度 **RankBar**；右側顯示選取配方的參數表、一張**參數雷達圖**、最新變更摘要 (依語意判定 MAJOR/MINOR/PATCH)，以及 **commit-graph 版本歷史**時間軸，標出作者、時間戳與變更說明。',
+        en: 'The left pane is the **recipe library** grouped by LITHO/ETCH/CMP/CVD/PVD/INSP with a usage **RankBar** ranking recipes by how often they run; the right pane shows the selected recipe\'s parameter table, a **parameter radar**, a latest-change summary (semantically classified MAJOR/MINOR/PATCH), and a **commit-graph version-history** timeline with author, timestamp and change note.',
       },
       {
         zh: '在左側清單點選任一配方即載入右側詳情；目前版本以 CURRENT 標籤與較大發光節點標示。此頁為靜態主資料瀏覽，不訂閱即時事件。',
@@ -212,8 +212,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The Alarm Desk centralizes every `alarm.raised` alarm on the floor, tiered critical / major / minor, with operator **acknowledge (ACK)** — it mirrors the alarm badge count in the sidebar.',
       },
       {
-        zh: '頂部摘要條以晶片顯示各嚴重度計數，critical 會以聲納環脈動；下方是警報列清單，含嚴重度晶片、時間戳、來源與訊息，已確認者標 ACK。點選警報開啟 Drill-In，顯示 SOP 參考並提供**確認**按鈕。',
-        en: 'A summary strip shows per-severity counts as chips, with critical pinging a sonar ring; below it a list of alarm rows carries a severity chip, timestamp, source and message, with an ACK badge once acknowledged. Selecting an alarm opens a Drill-In with the SOP reference and an **Acknowledge** button.',
+        zh: '頂部摘要條以晶片顯示各嚴重度計數，critical 會以聲納環脈動；其下是一張**嚴重度趨勢 AreaChart**——把 minor / major / critical 在滾動視窗裡堆疊，critical 帶光暈——以及一條 **pareto-by-tool RankBar** 指出警報最多的機台。再下方是警報列清單，含嚴重度晶片、時間戳、來源與訊息，已確認者標 ACK。點選警報開啟 Drill-In，顯示 SOP 參考並提供**確認**按鈕。',
+        en: 'A summary strip shows per-severity counts as chips, with critical pinging a sonar ring; below it sit a **severity-trend AreaChart** — minor / major / critical stacked over a rolling window with critical glowing — and a **pareto-by-tool RankBar** flagging the noisiest tools. Further down, a list of alarm rows carries a severity chip, timestamp, source and message, with an ACK badge once acknowledged. Selecting an alarm opens a Drill-In with the SOP reference and an **Acknowledge** button.',
       },
       {
         zh: '點選警報列選取並開啟詳情；按 **Acknowledge** 會以迴圈時鐘時間 (`clock.loopT()`) 發布 `alarm.ack` 事件，列上隨即出現 ACK 標記。進入頁面時會由環形緩衝區回填歷史警報並還原其確認狀態，與側欄徽章一致。',
@@ -240,8 +240,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The KPI Dashboard distills live production performance into one metric set: OEE, yield, throughput (wph), MTBF, MTTR, WIP turn and cycle time — management\'s window on overall efficiency.',
       },
       {
-        zh: '英雄列是 **OEE 與良率**兩個放射狀儀表，附趨勢漲跌；中央是多序列**績效趨勢圖** (OEE / 良率 / 產出，最近 60 tick)；下方是其餘指標的迷你卡，各帶火花線與漲跌標示。',
-        en: 'A hero row carries two radial gauges for **OEE and Yield** with trend deltas; a multi-series **performance-trend chart** (OEE / yield / throughput, last 60 ticks) sits centrally; metric mini-tiles with sparklines and deltas line up below.',
+        zh: '英雄列是 **OEE 與良率**兩個放射狀儀表，附趨勢漲跌，旁邊一張**正規化 KPI 雷達**把各指標以統一刻度疊在一個多邊形上；其下以**班別 / 視窗對比**並列當前與前一段表現。中央是多序列**績效趨勢圖** (OEE / 良率 / 產出，最近 60 tick)；下方是其餘指標的迷你卡，各帶火花線與漲跌標示。',
+        en: 'A hero row carries two radial gauges for **OEE and Yield** with trend deltas, plus a **normalized KPI radar** stacking every metric on one common-scale polygon; below it a **shift / window comparison** sets the current period against the previous one. A multi-series **performance-trend chart** (OEE / yield / throughput, last 60 ticks) sits centrally; metric mini-tiles with sparklines and deltas line up below.',
       },
       {
         zh: '此頁為即時儀表，無需互動。進入頁面時由環形緩衝區計算首幀數值（不會停在「Priming…」）；之後每次 `ringBuffer$` 推送都會重算全部 KPI 並推進趨勢圖。',
@@ -270,8 +270,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The Document Flow Cockpit is the ERP flagship. Six swimlanes render the full **order-to-cash** document chain: Sales Order → Planned → Prod Order → Lot → Goods Receipt → Invoice — a live, end-to-end view of the value stream pulsing across domains.',
       },
       {
-        zh: '每條泳道保有一個滾動**累計計數**（總覽）與最近約 6 筆單據的發光晶片（動態）。最新晶片帶 New 標籤與強光環；**批次**泳道額外從共享 zustand 橋接 store 讀取在製批次並顯示迷你進度條。',
-        en: 'Each lane keeps a rolling **count** (the overview) and the most recent ~6 documents as glowing chips (the motion). The freshest chip carries a New tag and a glow ring; the **Lot** lane additionally reads in-flight bridged lots from the shared zustand bridge store and shows a mini progress bar.',
+        zh: '每條泳道保有一個滾動**累計計數**（總覽）、一條反映近期吞吐節奏的**迷你 sparkline**，與最近約 6 筆單據的發光晶片（動態）；泳道之間以**動態流動連結器**串成一條流向右側的單據河。最新晶片帶 New 標籤與強光環；**批次**泳道額外從共享 zustand 橋接 store 讀取在製批次並顯示迷你進度條。',
+        en: 'Each lane keeps a rolling **count** (the overview), a **per-lane sparkline** tracing its recent throughput, and the most recent ~6 documents as glowing chips (the motion); **animated flow connectors** thread the lanes into one document river flowing rightward. The freshest chip carries a New tag and a glow ring; the **Lot** lane additionally reads in-flight bridged lots from the shared zustand bridge store and shows a mini progress bar.',
       },
       {
         zh: '可點選的晶片（SO、生產單、批次、收料）會跨域深連結到對應頁面與實體；計畫單與發票晶片為靜態。整頁無隨機性，計數由靜態快照種子化後再由總線即時遞增。',
@@ -308,8 +308,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The MRP page answers material-requirements planning\'s core question: **will each material\'s stock cover future demand?** It projects available-to-promise and shortages across time buckets — the trigger for purchasing and scheduling.',
       },
       {
-        zh: '主面板是**物料覆蓋率矩陣**：每列一項物料，欄為現有量、可用量 (ATP) 與多個時段投影；任何 ≤0 的格子發光紅標示短缺。選取物料後右側面板分解其**需求**（消耗該料的生產單）與**供給**（補料的採購單）。',
-        en: 'The main panel is a **material-coverage matrix**: one row per material with columns for on-hand, available (ATP) and several bucket projections; any cell ≤0 glows critical to flag a shortage. Selecting a material opens a side panel decomposing its **demand** (production orders consuming it) and **supply** (purchase orders replenishing it).',
+        zh: '主面板是**物料覆蓋率矩陣**：每列一項物料，欄為現有量、可用量 (ATP) 與多個時段投影；任何 ≤0 的格子發光紅標示短缺。矩陣旁有一條**缺料投影 AreaChart** 帶，把投影在製量隨時段下滑、跌破零的走勢畫出來。選取物料後右側面板分解其**需求**（消耗該料的生產單）與**供給**（補料的採購單）。',
+        en: 'The main panel is a **material-coverage matrix**: one row per material with columns for on-hand, available (ATP) and several bucket projections; any cell ≤0 glows critical to flag a shortage. A **shortage-projection AreaChart** strip beside the matrix traces projected on-hand sliding across buckets and dipping below zero. Selecting a material opens a side panel decomposing its **demand** (production orders consuming it) and **supply** (purchase orders replenishing it).',
       },
       {
         zh: '點選任一物料列開啟右側分解面板，含投影條、需求清單與供給清單；按 X 關閉。標題列顯示短缺總數徽章。當全部覆蓋時顯示「all covered」綠色空狀態。',
@@ -336,8 +336,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The Sales Orders page is the customer order book with built-in **ATP (Available-to-Promise)** analysis — answering sales\' most critical question: can this order ship on time, or must the date slip?',
       },
       {
-        zh: '頂部 **ATP 可用量面板**以分段條呈現現有量 / 在途 / 計畫產出 / 短缺，搭配覆蓋率放射儀表；下方訂單表含狀態、優先級、需求/承諾日與 ATP 承諾晶片 (Confirmed/Partial/Shortfall)，short fall 列會脈動。點選訂單開啟 Drill-In 顯示行項目。',
-        en: 'A top **ATP availability panel** shows a segmented bar (on-hand / in-transit / planned production / shortfall) with a coverage gauge; the order table below carries status, priority, requested/promised dates and an ATP promise chip (Confirmed/Partial/Shortfall), with shortfall rows pulsing. Selecting an order opens a Drill-In with its line items.',
+        zh: '頂部 **ATP 可用量面板**以分段條呈現現有量 / 在途 / 計畫產出 / 短缺，搭配覆蓋率放射儀表；其旁有一條**客戶需求 RankBar**（依需求量排名客戶）與一個**狀態占比甜甜圈**。下方訂單表含狀態、優先級、需求/承諾日與 ATP 承諾晶片 (Confirmed/Partial/Shortfall)，金額欄以 **Heatbar** 細胞著色，shortfall 列會脈動。點選訂單開啟 Drill-In 顯示行項目。',
+        en: 'A top **ATP availability panel** shows a segmented bar (on-hand / in-transit / planned production / shortfall) with a coverage gauge; beside it a **customer-demand RankBar** ranks customers by demand and a **status-mix donut** splits the book. The order table below carries status, priority, requested/promised dates and an ATP promise chip (Confirmed/Partial/Shortfall), with the value column reading as **Heatbar** cells and shortfall rows pulsing. Selecting an order opens a Drill-In with its line items.',
       },
       {
         zh: 'ATP 條的各分段可點選並跳轉到對應頁（在途→Shipments、計畫→生產單、短缺→MRP）。點選訂單列開啟詳情。承諾日與承諾狀態以 `cyrb53(orderNo)` 確定性衍生，重載後保持一致。',
@@ -364,8 +364,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The Production Orders page is where ERP meets MES: each production order represents work to be made on the floor, and its status (Created→Released→InProcess→Completed) plus **live bridged-lot progress** reflects shop-floor execution directly.',
       },
       {
-        zh: '主面板是一個密集的生產單資料表，狀態以晶片呈現，InProcess 脈動；當生產單有橋接的在製批次時，會顯示一個發光的 **Live** 進度條與步數。點選生產單列開啟 Drill-In 面板。',
-        en: 'The main panel is a dense production-order data table with status chips (InProcess pulses); when an order has a bridged in-flight lot, a glowing **Live** progress bar and step count appear. Selecting an order row opens a Drill-In panel.',
+        zh: '頂部是一張**工單時間軸 Gantt**：每張生產單畫成一條狀態著色的長條排在時間軸上，並有一條虛線標出**今天**，點任一長條即可選取該生產單。下方是一個密集的生產單資料表，狀態以晶片呈現、InProcess 脈動；當生產單有橋接的在製批次時，會顯示一個發光的 **Live** 進度條與步數。點選生產單列開啟 Drill-In 面板。',
+        en: 'Up top is an **order-timeline Gantt**: each production order is a status-toned bar on a time axis with a dashed **today** line; click a bar to select that order. Below is a dense production-order data table with status chips (InProcess pulses); when an order has a bridged in-flight lot, a glowing **Live** progress bar and step count appear. Selecting an order row opens a Drill-In panel.',
       },
       {
         zh: '點選列查看單據詳情。Live 進度欄反映橋接 store (`useBridgedLots`) 中的批次步數——這正是 MES→ERP 橋接把車間進度回灌到 ERP 的可視化結果。',
@@ -392,8 +392,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The Inventory page shows on-hand, committed and available stock per material and storage location — the stock ledger for judging shortages and shipping readiness.',
       },
       {
-        zh: '主面板是密集庫存表，含物料、描述、儲位晶片與數量欄；當可用量 ≤0 時數字發光紅並標示短缺。點選列開啟 Drill-In 顯示該庫存列詳情。',
-        en: 'The main panel is a dense inventory table with material, description, storage-location chips and quantity columns; when available stock ≤0 the figure glows critical to flag a shortage. Selecting a row opens a Drill-In with that inventory line\'s detail.',
+        zh: '頂部是一張**儲位占用馬賽克**：每個儲位一格，青色填充比例代表它占全廠現有量 (on-hand) 的份額，點任一格即篩選該儲位，底部並有一條即時 `erp.goods.movement` 異動跑馬燈。下方主面板是密集庫存表，含物料、描述、儲位晶片與數量欄；當可用量 ≤0 時數字發光紅並標示短缺。點選列開啟 Drill-In 顯示該庫存列詳情。',
+        en: 'Up top is a **storage-occupancy mosaic**: one tile per location, its cyan fill encoding that location’s share of total on-hand stock; click a tile to filter to it, with a live `erp.goods.movement` ticker running along the bottom. The main panel below is a dense inventory table with material, description, storage-location chips and quantity columns; when available stock ≤0 the figure glows critical to flag a shortage. Selecting a row opens a Drill-In with that inventory line\'s detail.',
       },
       {
         zh: '點選庫存列查看詳情。庫存為靜態快照（無雙重收料）；MES→ERP 橋接的收料動作以 `erp.goods.movement` (GR) 事件呈現於駕駛艙，而非直接改寫此表。',
@@ -420,8 +420,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The Procurement page tracks every purchase order (PO) to suppliers, watching status and delivery dates; **late** POs pulse to stand out — mirroring the late-PO badge in the sidebar.',
       },
       {
-        zh: '主面板是一個密集的採購單資料表，狀態晶片區分 open / confirmed / received / late，late 以聲納環脈動。點選 PO 列開啟 Drill-In 面板查看行項目與供應商資訊。',
-        en: 'The main panel is a dense PO data table with status chips for open / confirmed / received / late, late pinging a sonar ring. Selecting a PO row opens a Drill-In panel with line items and vendor info.',
+        zh: '頂部是**採購單管線帶**：PO 沿 **Open → In-Transit → Received** 流動，各節點以即時計數呈現、連結器閃爍流光，每當 `erp.po.received` 抵達 **Received** 節點即聲納脈動。下方主面板是一個密集的採購單資料表，狀態晶片區分 open / confirmed / received / late，late 以聲納環脈動。點選 PO 列開啟 Drill-In 面板查看行項目與供應商資訊。',
+        en: 'Up top is the **PO pipeline band**: POs flow **Open → In-Transit → Received** with live counts and shimmer along the connectors, and each `erp.po.received` sonar-pulses the **Received** node. The main panel below is a dense PO data table with status chips for open / confirmed / received / late, late pinging a sonar ring. Selecting a PO row opens a Drill-In panel with line items and vendor info.',
       },
       {
         zh: '點選 PO 列查看詳情。採購單的 open/confirmed 量會被 MRP 與銷售訂單 ATP 計為「在途供給」，因此延遲的 PO 會連帶影響可承諾量。',
@@ -448,8 +448,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'Materials is the master catalog of every material, typed **FERT** (finished), **HALB** (semi-finished) and **ROH** (raw) — the shared foundation referenced by BOM, inventory, MRP and costing.',
       },
       {
-        zh: '主面板是物料表，含物料號、描述、類型晶片（色彩編碼）與標準成本等欄。點選物料開啟 Drill-In 顯示主資料屬性，並可帶出其 BOM 關聯。',
-        en: 'The main panel is a material table with material number, description, a color-coded type chip and standard cost. Selecting a material opens a Drill-In with master-data attributes and any BOM linkage.',
+        zh: '標題列有兩枚 **DonutSpark**，分別呈現類型占比與 **ABC** 分級分佈。主面板是物料表，含物料號、描述、類型晶片（色彩編碼）與標準成本等欄。點選物料開啟 Drill-In 顯示主資料屬性、一條**成本趨勢 sparkline**，並可帶出其 BOM 關聯。',
+        en: 'The header carries two **DonutSparks** for the type mix and the **ABC** classification split. The main panel is a material table with material number, description, a color-coded type chip and standard cost. Selecting a material opens a Drill-In with master-data attributes, a **cost-trend sparkline**, and any BOM linkage.',
       },
       {
         zh: '點選物料列查看詳情。此頁為靜態主資料瀏覽，是其他 ERP 頁的字典來源——例如庫存與 MRP 的物料描述、Finance 的標準成本都來自此處。',
@@ -475,8 +475,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The Business Partners page is the unified master for customers and vendors; each partner is tagged **customer**, **vendor** or **both** — the counterparty referenced by both sales and purchase orders.',
       },
       {
-        zh: '頂部摘要顯示客戶 / 供應商 / 雙重角色的計數；主面板是夥伴表，角色以色彩晶片區分。點選夥伴開啟 Drill-In 顯示聯絡與交易屬性。',
-        en: 'A header summary counts customers / vendors / both; the main panel is a partner table with role-colored chips. Selecting a partner opens a Drill-In with contact and transaction attributes.',
+        zh: '頂部摘要顯示客戶 / 供應商 / 雙重角色的計數；右側有一條**情報軌**：客戶/供應商占比甜甜圈、依國別/地區排名的 **RankBar** 與 **top-5 夥伴**清單。主面板是夥伴表，角色以色彩晶片區分。點選夥伴開啟 Drill-In 顯示聯絡與交易屬性。',
+        en: 'A header summary counts customers / vendors / both; an **intelligence rail** runs down the side with a customer/vendor donut, a **region RankBar**, and a **top-5 partners** list. The main panel is a partner table with role-colored chips. Selecting a partner opens a Drill-In with contact and transaction attributes.',
       },
       {
         zh: '點選夥伴列查看詳情。銷售訂單的客戶 (`bpNo`/`customerName`) 與採購單的供應商 (`bpNo`/`vendorName`) 都指向此主檔。',
@@ -502,8 +502,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The Bill of Materials page defines which components, in what quantities, make up each finished good — the structural basis for MRP requirements explosion and cost roll-up.',
       },
       {
-        zh: '左側是可搜尋的 BOM 清單（依表頭物料），右側顯示選取 BOM 的組件結構，每個組件帶類型晶片 (FERT/HALB/ROH) 與用量。',
-        en: 'The left pane is a searchable BOM list (by header material); the right pane shows the selected BOM\'s component structure, each component with a type chip (FERT/HALB/ROH) and quantity.',
+        zh: '左側是可搜尋的 BOM 清單（依表頭物料），右側顯示選取 BOM 的組件結構，每個組件帶類型晶片 (FERT/HALB/ROH)、用量，與一條**成本 roll-up 長條**呈現該子樹累積的成本占比；另有一個**組件成本甜甜圈**拆解母件成本的組成。',
+        en: 'The left pane is a searchable BOM list (by header material); the right pane shows the selected BOM\'s component structure, each component with a type chip (FERT/HALB/ROH), quantity, and a **cost roll-up bar** for the share of cost its subtree accumulates; a **component-cost donut** breaks down the header material’s cost makeup.',
       },
       {
         zh: '在左側搜尋或點選 BOM 載入右側結構。組件物料號可對照物料主檔；BOM 用量決定 MRP 把成品需求展開成多少組件需求。',
@@ -529,8 +529,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The Finance page translates operations into accounting: inventory value, WIP value, revenue, accounts receivable (AR) and payable (AP) — plus a live ledger of **general-ledger (GL) postings** triggered by manufacturing completion.',
       },
       {
-        zh: '頂部是財務 KPI 卡（庫存值、WIP、營收、開放 AR/AP）與一個 AR 收款健康度儀表；下方是**即時 GL 分錄帳**，逐筆顯示科目、金額與參考單號。',
-        en: 'Finance KPI tiles (inventory value, WIP, revenue, open AR/AP) and an AR-collection-health gauge sit on top; a **live GL-postings ledger** below lists each posting\'s account, amount and reference document.',
+        zh: '頂部是**現金部位帶**：應收 (A/R，翠綠) 與應付 (A/P，玫紅) 雙量表，中央是即時 **Net Cash Position** 數字（正綠負紅），沿帶並有一條發票跑馬燈。其下是財務 KPI 卡（庫存值、WIP、營收、開放 AR/AP）、漸層 **GL 趨勢圖**與**即時 GL 分錄帳**，逐筆顯示科目、金額與參考單號。',
+        en: 'Up top is the **cash-position band**: dual gauges for accounts receivable (A/R, emerald) and payable (A/P, rose) with a centered live **Net Cash Position** figure (green positive, red negative) and an invoice ticker streaming along it. Below it are Finance KPI tiles (inventory value, WIP, revenue, open AR/AP), a gradient **GL-trend chart**, and a **live GL-postings ledger** listing each posting\'s account, amount and reference document.',
       },
       {
         zh: '此頁為唯讀財務儀表。GL 帳在進入頁面時由環形緩衝區回填（新到優先，上限 40 筆）；當批次完工時，橋接會發布成品入帳與 WIP 沖轉兩筆對應分錄，可在此即時看見。',
@@ -559,8 +559,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The Control Tower is the SCM flagship — a **supply-network map** rendering the full logistics web from suppliers → FAB-01 → distribution centers (DC) → customers, with live in-transit shipments and disruptions.',
       },
       {
-        zh: '核心是一張固定 viewBox 的 **SVG 網絡圖**：分層節點（供應商 / 廠 / DC / 客戶）以發光圓點呈現，曲線航線依運輸模式有不同筆觸（空運虛線、海運點線、陸運實線）；貨運以彗星點沿航線移動。中斷的航線會以**行軍蟻 (marching-ants)** 般的危急筆觸脈動。',
-        en: 'At its core is a fixed-viewBox **SVG network map**: tiered nodes (supplier / fab / DC / customer) as glowing glyphs, curved lanes textured by mode (air dashed, sea dotted, truck solid); shipments move as comet dots along the lanes. A disrupted lane pulses in critical with a **marching-ants** stroke.',
+        zh: '地圖上方有一條 **AnimatedNumber KPI 軌**，即時翻動在途貨件、準時率、斷鏈數等供應鏈總覽數字。核心是一張固定 viewBox 的 **SVG 網絡圖**：分層節點（供應商 / 廠 / DC / 客戶）以發光圓點呈現，曲線航線依運輸模式有不同筆觸（空運虛線、海運點線、陸運實線）；貨運以彗星點沿航線移動。中斷的航線會以**行軍蟻 (marching-ants)** 般的危急筆觸脈動。',
+        en: 'An **AnimatedNumber KPI rail** above the map rolls live network totals — in-transit shipments, on-time rate, active disruptions. At its core is a fixed-viewBox **SVG network map**: tiered nodes (supplier / fab / DC / customer) as glowing glyphs, curved lanes textured by mode (air dashed, sea dotted, truck solid); shipments move as comet dots along the lanes. A disrupted lane pulses in critical with a **marching-ants** stroke.',
       },
       {
         zh: '點選節點或貨運開啟 Drill-In 詳情。貨運點位置以 `shipmentPosition(loopT, departureT, transitSeconds)` 每幀計算，因此航線與節點層在運輸過程中不重繪。遵循 prefers-reduced-motion：動畫關閉時點位靜態定位。',
@@ -594,8 +594,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The Shipments page is the live logistics table — one row per shipment the SCM driver puts in flight, showing status, lane, material and **live transit progress**.',
       },
       {
-        zh: '主面板是貨運表，狀態晶片沿用控制塔的色調（created→灰、in-transit→青藍脈動、arrived/delivered→綠）；in-transit 進度條以 from-accent-2→accent 漸層呈現。逾期列標 row-hot、受中斷影響列標 row-superhot。點選開啟 Drill-In。',
-        en: 'The main panel is a shipment table; status chips reuse the Control Tower tone map (created→slate, in-transit→cyan pulsing, arrived/delivered→emerald); the in-transit bar uses the from-accent-2→accent gradient. Late rows flag row-hot, disruption-hit rows flag row-superhot. Selecting opens a Drill-In.',
+        zh: '表格上方有一條**模式拆分帶**：一個 DonutSpark（中央為總航段數）搭配空運 / 海運 / 陸運的分項計數、一條 **Busiest Lanes** top-5 RankBar，以及一條到貨跑馬燈。下方主面板是貨運表，狀態晶片沿用控制塔的色調（created→灰、in-transit→青藍脈動、arrived/delivered→綠）；in-transit 進度條以 from-accent-2→accent 漸層呈現。逾期列標 row-hot、受中斷影響列標 row-superhot。點選開啟 Drill-In。',
+        en: 'Above the table sits a **mode-split band**: a DonutSpark (center = total legs) with Air / Sea / Truck counts, a **Busiest Lanes** top-5 RankBar, and an arrival ticker. The main panel below is a shipment table; status chips reuse the Control Tower tone map (created→slate, in-transit→cyan pulsing, arrived/delivered→emerald); the in-transit bar uses the from-accent-2→accent gradient. Late rows flag row-hot, disruption-hit rows flag row-superhot. Selecting opens a Drill-In.',
       },
       {
         zh: '點選貨運列查看詳情。進度為**計算值**（由 `shipmentPosition(loopT, departureT, transitSeconds)` 推導），非儲存欄位——這是刻意的設計，使進度與全域迴圈時鐘同步。',
@@ -627,8 +627,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The Demand Planning page is the demand side of integrated business planning (IBP): it compares **forecast** against **actual** demand in weekly buckets and quantifies variance — the starting point for supply and capacity planning.',
       },
       {
-        zh: '頂部摘要卡呈現規劃指標；中央是多序列**預測 vs 實際**組合圖（IBP 週度展望），實際高於預測（需求超出計畫）以玫紅、低於以綠呈現變異。下方表列各物料的桶值與實際。',
-        en: 'Summary tiles show planning metrics on top; a multi-series **forecast-vs-actual** composed chart (weekly IBP horizon) sits centrally, coloring variance rose when actuals run over plan and emerald when under. A table below lists each material\'s bucket values and actuals.',
+        zh: '頂部是一張**季節性熱力圖**：top-8 SKU × W1…W8 桶，靛藍格深淺代表該列（以行正規化）的預測強度，點任一格即把該 SKU 載入下方圖表。中央是多序列**預測 vs 實際**組合圖（IBP 週度展望），實際高於預測（需求超出計畫）以玫紅、低於以綠呈現變異，旁有逐 SKU 的**準確度 bullet 條**與**信賴度環**。下方表列各物料的桶值與實際。',
+        en: 'The page leads with a **seasonality heatmap**: top-8 SKUs × W1…W8 buckets, indigo cell intensity encoding each row’s (row-normalized) forecast strength; click a cell to chart that SKU below. A multi-series **forecast-vs-actual** composed chart (weekly IBP horizon) sits centrally, coloring variance rose when actuals run over plan and emerald when under, with per-SKU **accuracy bullets** and **confidence rings** alongside. A table below lists each material\'s bucket values and actuals.',
       },
       {
         zh: '此頁為規劃儀表。變異色階沿用 SPC 的能力色階概念（接近計畫為黃、偏離為紅/綠）。預測會隨即時事件更新對應桶位。',
@@ -655,8 +655,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The Supplier Scorecards page rates each supplier on three metrics: **on-time delivery**, **quality** and **average lead days** — the basis for supplier management and risk identification.',
       },
       {
-        zh: '每個供應商以一組放射儀表呈現三項指標，採色彩門檻上色：準時/品質 ≥95% 綠、≥85% 黃、否則紅；前置天數則相反（短為綠、長為紅）。任一項低於健康門檻即標記**at-risk**。點選開啟 Drill-In。',
-        en: 'Each supplier shows three radial gauges color-gated by threshold: on-time/quality ≥95% emerald, ≥85% amber, else rose; lead days invert (short emerald, long rose). Any metric below healthy flags the supplier **at-risk**. Selecting opens a Drill-In.',
+        zh: '頁面頂部是 **Top Suppliers · Composite** 階梯台：綜合分數最高的前三家站上銀 / 金 / 銅階，台座高度依綜合分數縮放，分數以 AnimatedNumber 翻動，點台座即開啟 drill-in。下方每個供應商以一組放射儀表呈現三項指標，採色彩門檻上色：準時/品質 ≥95% 綠、≥85% 黃、否則紅；前置天數則相反（短為綠、長為紅）。任一項低於健康門檻即標記**at-risk**。點選開啟 Drill-In（內含一張**逐供應商雷達圖**）。',
+        en: 'The page leads with a **Top Suppliers · Composite** podium: the top-3 by composite score stand on silver / gold / bronze pedestals sized by score, with AnimatedNumber scores; click a pedestal to open the drill-in. Below, each supplier shows three radial gauges color-gated by threshold: on-time/quality ≥95% emerald, ≥85% amber, else rose; lead days invert (short emerald, long rose). Any metric below healthy flags the supplier **at-risk**. Selecting opens a Drill-In with a **per-supplier radar**.',
       },
       {
         zh: '點選供應商卡查看詳情。前置天數刻意使用「低為佳」色階，避免冗長前置時間在預設青色儀表上誤顯為綠色。',
