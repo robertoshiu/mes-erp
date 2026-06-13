@@ -204,9 +204,8 @@ function disruptionReducer(state: Set<string>, action: DisruptionAction): Set<st
 }
 
 /* ── Dense-table + drill-in shell ────────────────────────────────────────────
- * Same composition as MasterDataModule (DenseDataTable + DrillInPanel, selection
- * via the shared uiStore), inlined here only to forward `rowClassName` — which
- * MasterDataModule does not expose — so late rows flash row-hot and
+ * DenseDataTable + DrillInPanel with selection via the shared uiStore, inlined
+ * here only to forward a `rowClassName` hook — so late rows flash row-hot and
  * disruption-affected rows flash row-superhot (plan Spec D). No new primitives. */
 function ShipmentsTable({
   data,
@@ -278,6 +277,8 @@ export function ShipmentsModule({ scmData, eventBus }: ScmModuleProps) {
   const { networkNodes, lanes } = scmData
   const shipments = useShipments(s => s.shipments)
   const navigateTo = useUiStore(s => s.navigateTo)
+  // Memoized so TickerTape doesn't resubscribe on every 1s table re-render.
+  const events$ = useMemo(() => eventBus.all$(), [eventBus])
 
   // Bus-slaved loop clock + 1s tick (table is not rAF). Synced on every event so
   // the position fed to shipmentPosition() matches the driver's departureT phase.
@@ -599,7 +600,7 @@ export function ShipmentsModule({ scmData, eventBus }: ScmModuleProps) {
       style={{ animationDelay: '120ms' }}
     >
       <TickerTape
-        source$={eventBus.all$()}
+        source$={events$}
         accept={['scm.shipment.arrived', 'scm.shipment.delivered', 'scm.shipment.departed']}
         max={24}
       />

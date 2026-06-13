@@ -478,6 +478,7 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse-glow,
   .animate-pulse-soft,
+  .animate-rise,
   .animate-sonar,
   .animate-marching-ants,
   .animate-blink,

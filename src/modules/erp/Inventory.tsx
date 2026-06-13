@@ -138,6 +138,8 @@ function OccupancyMosaic({
 
 export function InventoryModule({ erpData, eventBus }: ErpModuleProps) {
   const rows = erpData.inventory
+  // Memoized so TickerTape doesn't resubscribe on every re-render.
+  const events$ = useMemo(() => eventBus.all$(), [eventBus])
   const selectEntity = useUiStore(s => s.selectEntity)
   const selectedEntity = useUiStore(s => s.selectedEntity)
   const [locFilter, setLocFilter] = useState<string | null>(null)
@@ -306,7 +308,7 @@ export function InventoryModule({ erpData, eventBus }: ErpModuleProps) {
               Movements
             </span>
             <div className="flex-1 min-w-0">
-              <TickerTape source$={eventBus.all$()} accept={['erp.goods.movement']} />
+              <TickerTape source$={events$} accept={['erp.goods.movement']} />
             </div>
           </div>
         </Panel>

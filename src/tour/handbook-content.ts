@@ -364,8 +364,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The Production Orders page is where ERP meets MES: each production order represents work to be made on the floor, and its status (Created→Released→InProcess→Completed) plus **live bridged-lot progress** reflects shop-floor execution directly.',
       },
       {
-        zh: '主面板是生產單表（沿用 `MasterDataModule` 框架），狀態以晶片呈現，InProcess 脈動；當生產單有橋接的在製批次時，會顯示一個發光的 **Live** 進度條與步數。點選生產單開啟 Drill-In。',
-        en: 'The main panel is a production-order table (on the `MasterDataModule` frame) with status chips (InProcess pulses); when an order has a bridged in-flight lot, a glowing **Live** progress bar and step count appear. Selecting an order opens a Drill-In.',
+        zh: '主面板是一個密集的生產單資料表，狀態以晶片呈現，InProcess 脈動；當生產單有橋接的在製批次時，會顯示一個發光的 **Live** 進度條與步數。點選生產單列開啟 Drill-In 面板。',
+        en: 'The main panel is a dense production-order data table with status chips (InProcess pulses); when an order has a bridged in-flight lot, a glowing **Live** progress bar and step count appear. Selecting an order row opens a Drill-In panel.',
       },
       {
         zh: '點選列查看單據詳情。Live 進度欄反映橋接 store (`useBridgedLots`) 中的批次步數——這正是 MES→ERP 橋接把車間進度回灌到 ERP 的可視化結果。',
@@ -420,8 +420,8 @@ export const handbookEntries: HandbookEntry[] = [
         en: 'The Procurement page tracks every purchase order (PO) to suppliers, watching status and delivery dates; **late** POs pulse to stand out — mirroring the late-PO badge in the sidebar.',
       },
       {
-        zh: '主面板是採購單表（`MasterDataModule` 框架），狀態晶片區分 open / confirmed / received / late，late 以聲納環脈動。點選 PO 開啟 Drill-In 查看行項目與供應商資訊。',
-        en: 'The main panel is a PO table (on the `MasterDataModule` frame) with status chips for open / confirmed / received / late, late pinging a sonar ring. Selecting a PO opens a Drill-In with line items and vendor info.',
+        zh: '主面板是一個密集的採購單資料表，狀態晶片區分 open / confirmed / received / late，late 以聲納環脈動。點選 PO 列開啟 Drill-In 面板查看行項目與供應商資訊。',
+        en: 'The main panel is a dense PO data table with status chips for open / confirmed / received / late, late pinging a sonar ring. Selecting a PO row opens a Drill-In panel with line items and vendor info.',
       },
       {
         zh: '點選 PO 列查看詳情。採購單的 open/confirmed 量會被 MRP 與銷售訂單 ATP 計為「在途供給」，因此延遲的 PO 會連帶影響可承諾量。',
