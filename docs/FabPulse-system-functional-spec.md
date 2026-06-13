@@ -365,15 +365,15 @@ CSS 為視覺單一真相（`src/index.css`），`src/lib/tokens.ts` 鏡射同�
 - **E10 霓虹狀態色**：PROD `#34D399`、STBY `#FBBF24`、SDT `#FB7185`、UDT `#EF4444`、NSC `#64748B`、ENG `#60A5FA`、OUT `#334155`。
 - **語意**：`--sem-critical #F43F5E`；別名 info=accent-2、warn=e10-stby、critical=sem-critical、success=e10-prod。
 - **圖表序列**：cyan / sky / indigo / emerald / amber（CSS 5 色，tokens.ts 加 rose 共 6）。
-- 字體：標題 / 內文 `Geist Variable`，等寬 `JetBrains Mono`（tabular-nums / zero）。
-- `tokens.ts` 另匯出 `e10Symbols`（●◐■▨○◆✕）、`e10Labels`、`e10Glow`、motion 時長 / easing 常數。
+- 字體：展示 / 模組標題 `Chakra Petch`（工業展示字，`--font-display`，Google Fonts 載入）、內文 `IBM Plex Sans`、等寬 `JetBrains Mono`（tabular-nums / zero）。
+- `tokens.ts` 另匯出 `e10Symbols`（●◐■▨○◆✕）、`e10Labels`、`e10Glow`、`domainTone`（MES 青 / ERP 靛 / SCM 天藍 / HELP 綠的每域強調色 + 暈 + 標籤，供 `ModuleHeader` 與域徽章使用）、motion 時長 / easing 常數。
 - 背景：固定雙徑向暈（青上中 / 靛右上）疊 40px 青色格線。
 
 ### 9.2 工具類（`@layer components`）
 `.panel`（主表面 + 漸層高光 + 邊 + 陰影）、`.glass`（毛玻璃 backdrop-blur）、`.panel-hover`（懸浮抬升）、`.hud-frame`（兩個 14px 角框）、`.accent-tick`（青→天藍漸層發光豎條，面板標題前導）、`.glow-cyan`、`.text-glow`/`.text-glow-soft`、`.metric-value`（JetBrains Mono tabular-nums，KPI 數字）。
 
 ### 9.3 動效詞彙（全為 `fp-*` keyframe，全部 `prefers-reduced-motion` 時停用，惟 `animate-rise` 保留）
-`animate-pulse-glow`（紅環脈動，警報 / 徽章）、`animate-pulse-soft`（呼吸，StatusDot / 頂欄）、`animate-rise`（淡入上移，EventStream 新列）、`animate-sonar`（同心環，警報 / 中斷 / 抵達 WOW）、`animate-blink`（SECS 游標）、`row-hot` / `row-superhot`（脈動左條內暈，僅 box-shadow 不搶列底色）、`scan-sweep`（對角青色掃描線）、`fp-flow`（offset-distance 流動點）。另含細青色捲軸與 recharts 暗色 tooltip 覆寫。
+`animate-pulse-glow`（紅環脈動，警報 / 徽章）、`animate-pulse-soft`（呼吸，StatusDot / 頂欄）、`animate-rise`（淡入上移，EventStream 新列）、`animate-sonar`（同心環，警報 / 中斷 / 抵達 WOW）、`animate-blink`（SECS 游標）、`animate-shimmer`（`fp-shimmer`，ModuleHeader 標題流光）、`animate-ticker`（`fp-ticker` 28s 線性平移，TickerTape 事件跑馬燈；`.ticker-pausable:hover` 暫停）、`animate-bar-grow`（`fp-bar-grow`，Heatbar / RankBar 進場橫向展開，reduced-motion 時直接 `scaleX(1)`）、`row-hot` / `row-superhot`（脈動左條內暈，僅 box-shadow 不搶列底色）、`scan-sweep`（對角青色掃描線）、`fp-flow`（offset-distance 流動點）。另含細青色捲軸與 recharts 暗色 tooltip 覆寫。
 
 ### 9.4 共用 UI 元件
 | 元件 | 角色 |
@@ -381,6 +381,14 @@ CSS 為視覺單一真相（`src/index.css`），`src/lib/tokens.ts` 鏡射同�
 | `Panel` / `PanelHeader` | 主表面包裝 + 標題列（`.accent-tick` + icon + 標題 + 右槽） |
 | `MetricTile` | KPI 磚：標籤 + 發光單空值 + 趨勢差值 + 漸層 sparkline（recharts AreaChart） |
 | `Gauge` | 徑向環 Gauge（發光弧，OEE/Yield/涵蓋率） |
+| `ModuleHeader` | 全 21 頁共用的戰情標題列：發光展示字標題 + 域徽章（MES/ERP/SCM，取 `domainTone`）+ 即時 count-up KPI pill + 流光髮絲（`animate-shimmer`）+ 子項錯落進場 + HUD 角框；高度 ≤72px |
+| `AnimatedNumber` | 數值 count-up（`requestAnimationFrame` + ease-out 補間，`prefers-reduced-motion` 直接定值；tabular-nums 防抖） |
+| `Heatbar` | 純 CSS 熱度橫條（值/上限 → 寬度 + 色階，可選刻度與標籤；`animate-bar-grow` 進場） |
+| `SparkRing` | 微型徑向環（純 CSS/SVG，無 recharts；title 帶原始值供 hover 讀數），用於表格內 inline 佔比 |
+| `DeltaChip` | 趨勢差值徽章（mono + lucide 升降箭頭，可 `invert` 反轉好壞向；對齊 MetricTile 風格） |
+| `RankBar` | 排名橫條清單（純 CSS bars，可 hover 抬升 / 點選、自訂值格式），用於 top-offenders / 最忙航段等排行 |
+| `DonutSpark` | 微型甜甜圈火花圖（多段佔比 + 中央標籤值，純 CSS/SVG，適合標題群集 / 表格內） |
+| `TickerTape` | 事件跑馬燈：訂閱事件流，以 toned dot + mono 短碼橫向滾動（`animate-ticker`），hover 暫停、reduced-motion 改靜態列表；與 `EventStream` 同訂閱模式 |
 | `StatusDot` | E10 霓虹狀態點（色 + 暈 + 可選 code/label，可脈動） |
 | `DenseDataTable` | 虛擬化（`@tanstack/react-virtual`）可排序密集表；`rowClassName` 驅動 `row-hot/row-superhot`；zebra + 懸浮 + 選取左條 |
 | `MasterDataModule` | 通用「密集表 + drill-in」外殼（零領域知識），選取透過 `uiStore` |
@@ -398,7 +406,7 @@ CSS 為視覺單一真相（`src/index.css`），`src/lib/tokens.ts` 鏡射同�
 - **狀態 / 反應**：RxJS 7.8（事件匯流排）、zustand 5（store）。
 - **視覺**：recharts 3（圖表）、framer-motion 12 + gsap 3（動畫）、lucide-react（圖示）、`@tanstack/react-virtual`（虛擬化表）、`@fontsource-variable/geist`。
 - **建置**：Vite 8（rolldown）；`vite.config.ts` 用 `@vitejs/plugin-react` + `@tailwindcss/vite`；`base = '/mes-erp/'`（GitHub Actions）否則 `'./'`；別名 `@`→`./src`。
-- **測試**：Vitest，預設 `environment: 'node'`（現有測試皆純邏輯，需 DOM 時逐檔 `// @vitest-environment` 開啟）；目前 91 個測試（11 檔）全綠。
+- **測試**：Vitest，預設 `environment: 'node'`（純邏輯測試：PRNG / 事件匯流排 / KPI/SPC 數學 / ERP·SCM 產生器 / 各視覺 helper），元件測試逐檔 `// @vitest-environment jsdom` 開啟並以 `*.dom.test.tsx` 命名；目前 399 個測試（49 檔）全綠。
 - **部署**：純靜態 SPA，push 至 `master` 由 GitHub Pages 建置部署（路徑前綴 `/mes-erp/`）。
 - **指令**：`dev` / `build`（`tsc -b && vite build`）/ `lint` / `preview` / `test`（`vitest run`）/ `test:watch`。
 
@@ -426,6 +434,7 @@ src/
 │  ├─ clock.ts                     180s 迴圈時鐘
 │  ├─ kpi.ts                       computeKpis（KPI 推導）
 │  ├─ tokens.ts / secs.ts          視覺 token 鏡射 / SECS 格式器
+│  ├─ tween.ts / vizTone.ts         count-up 補間 / 值→色階 helper（純函式，各附測試）
 │  ├─ uiStore.ts / useBridgedLots.ts / useShipments.ts   zustand
 ├─ data/
 │  ├─ prng.ts                      mulberry32 / cyrb53 / seededRng
@@ -445,4 +454,4 @@ src/
 設計與規格文件：`docs/plans/2026-05-29-fabpulse-erp-extension.md`、`docs/plans/2026-05-29-fabpulse-scm-extension.md`。
 
 ---
-*本說明書依 2026-06-12 之 `master`（含導覽系統與 Handbook，v1.0.0.0）原始碼整理。*
+*本說明書依 2026-06-13 之 `master`（v1.1.0.0：全 21 頁 `ModuleHeader` 戰情標題 + 即時資料 hero 視覺 + 8 個共用微視覺元件；含導覽系統與 Handbook）原始碼整理。*
