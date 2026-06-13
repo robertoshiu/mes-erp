@@ -4,6 +4,11 @@ All notable changes to FabPulse are documented in this file.
 
 Format: `## [MAJOR.MINOR.PATCH.MICRO] - YYYY-MM-DD` with Added / Changed / Fixed / Removed sections.
 
+## [1.1.1.0] - 2026-06-13
+
+### Fixed
+- **Guided tour now matches the redesigned screens.** After the v1.1.0.0 visual upgrade the tour kept spotlighting the older tables and dimmed each screen's new hero visualization, so the highlight and the narration drifted out of sync with what's on screen. The tour now spotlights the new heroes directly — the equipment bay×tool state mosaic (previously a thin header sliver), the production-orders timeline, the inventory occupancy mosaic, the procurement PO pipeline, and the finance cash-position band — and 17 more steps now describe each screen's new visuals (WIP histogram, severity trend, KPI radar, seasonality heatmap, supplier podium, and more). The in-app Handbook copy was updated to match.
+
 ## [1.1.0.0] - 2026-06-13
 
 ### Added
