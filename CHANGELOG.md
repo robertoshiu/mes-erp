@@ -4,6 +4,11 @@ All notable changes to FabPulse are documented in this file.
 
 Format: `## [MAJOR.MINOR.PATCH.MICRO] - YYYY-MM-DD` with Added / Changed / Fixed / Removed sections.
 
+## [1.1.4.0] - 2026-06-19
+
+### Fixed
+- **Fab Floor (and the Handbook) no longer cover the top bar and side menu.** The default Fab Floor screen — and the Handbook — were drawing their whole panel over the entire window, hiding the top status bar and the left navigation menu, and the screen's content wasn't even clickable. The ambient background glow was being applied to the screen's outer container instead of as a backdrop layer behind it, which pushed the whole screen on top of everything. Both screens now sit correctly inside the main content area, with the top bar and side menu fully visible and usable.
+
 ## [1.1.3.0] - 2026-06-19
 
 ### Fixed
