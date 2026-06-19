@@ -178,7 +178,11 @@ export default function Handbook() {
   const tourAvailable = pageTour !== null
 
   return (
-    <div className="flex flex-col h-full gap-4 p-4 bg-canvas bg-bloom animate-rise">
+    <div className="relative flex flex-col h-full gap-4 p-4 bg-canvas animate-rise">
+      {/* Decorative bloom as a child — see FabFloor note. As a root class,
+          `.bg-bloom` made the module absolute-to-viewport (covering chrome) and
+          click-through (pointer-events:none inherited by all content). */}
+      <div className="bg-bloom" aria-hidden />
       <ModuleHeader
         title={UI.title.en}
         subtitle={UI.title.zh + ' · FabPulse'}
@@ -190,7 +194,7 @@ export default function Handbook() {
         ]}
       />
 
-      <div className="flex flex-1 min-h-0 gap-4">
+      <div className="relative z-[1] flex flex-1 min-h-0 gap-4">
       {/* ─────────────── Left pane: search + nav ─────────────── */}
       <Panel className="w-[260px] shrink-0 flex flex-col overflow-hidden">
         <div className="flex items-center gap-2.5 px-3.5 py-2.5 border-b border-edge">

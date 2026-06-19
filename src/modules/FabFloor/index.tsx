@@ -23,9 +23,14 @@ export function FabFloor({ eventBus, masterData }: FabFloorProps) {
   const seedEvents = useMemo(() => eventBus.getBuffer(), [eventBus])
 
   return (
-    <div className="flex h-full gap-4 p-4 bg-canvas bg-bloom">
+    <div className="relative flex h-full gap-4 p-4 bg-canvas">
+      {/* Ambient bloom is a decorative child of this relative container — NOT a
+          class on the root. As a class, `.bg-bloom` (position:absolute; inset:0;
+          pointer-events:none) made the whole module absolute-to-the-viewport,
+          overlaying the TopBar + sidebar, and made all content click-through. */}
+      <div className="bg-bloom" aria-hidden />
       {/* Main content: command header + KPI strip + throughput ticker, floor map filling */}
-      <div className="flex-1 flex flex-col min-w-0 gap-4">
+      <div className="relative z-[1] flex-1 flex flex-col min-w-0 gap-4">
         <ModuleHeader
           title="Fab Floor"
           subtitle="FAB-01 · live process command center"
@@ -72,7 +77,7 @@ export function FabFloor({ eventBus, masterData }: FabFloorProps) {
       {/* Right panel: live event stream */}
       <Panel
         glass
-        className="w-80 shrink-0 flex flex-col overflow-hidden"
+        className="relative z-[1] w-80 shrink-0 flex flex-col overflow-hidden"
         aria-label="Event stream"
       >
         <PanelHeader
