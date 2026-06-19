@@ -11,6 +11,13 @@ interface SpotlightProps {
   /** Target rect in viewport coords, or null for a centered (full-veil) step. */
   rect: SpotRect | null
   pulse?: boolean
+  /**
+   * Left x (px) the veil must NOT cover — the width of the app's left chrome
+   * (the sidebar nav). The veil starts here instead of at the viewport edge so
+   * the side menu stays bright + clickable during the tour, instead of being
+   * blanketed by the dim bands. 0 = veil from the viewport's left edge.
+   */
+  leftInset?: number
 }
 
 const PAD = 8
@@ -29,13 +36,14 @@ const SPRING = { type: 'spring' as const, stiffness: 300, damping: 30 }
  * ring (and optional sonar pulse) are `pointer-events-none` so they never steal
  * the click. Centered/no-rect mode falls back to a single full-screen veil.
  */
-export function Spotlight({ rect, pulse }: SpotlightProps) {
-  // Centered step: single full veil, no hole.
+export function Spotlight({ rect, pulse, leftInset = 0 }: SpotlightProps) {
+  // Centered step: single full veil, no hole. `left: leftInset` keeps the
+  // sidebar column clear so the nav stays visible during centered steps too.
   if (!rect) {
     return (
       <motion.div
         className="fixed inset-0 z-[90] pointer-events-auto"
-        style={{ background: VEIL }}
+        style={{ background: VEIL, left: leftInset }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.2 }}
@@ -54,29 +62,30 @@ export function Spotlight({ rect, pulse }: SpotlightProps) {
 
   return (
     <div className="fixed inset-0 z-[90] pointer-events-none" aria-hidden>
-      {/* Four veil bands framing the hole — each blocks pointer events. */}
-      {/* Top band: full width, above the cutout. */}
+      {/* Four veil bands framing the hole — each blocks pointer events. All
+          start at `leftInset` so the sidebar column is never covered. */}
+      {/* Top band: from leftInset to the right edge, above the cutout. */}
       <motion.div
-        className="absolute left-0 right-0 top-0 pointer-events-auto"
-        style={{ background: VEIL }}
+        className="absolute right-0 top-0 pointer-events-auto"
+        style={{ background: VEIL, left: leftInset }}
         initial={false}
         animate={{ height: Math.max(0, cy) }}
         transition={SPRING}
       />
-      {/* Bottom band: full width, below the cutout. */}
+      {/* Bottom band: from leftInset to the right edge, below the cutout. */}
       <motion.div
-        className="absolute left-0 right-0 bottom-0 pointer-events-auto"
-        style={{ background: VEIL }}
+        className="absolute right-0 bottom-0 pointer-events-auto"
+        style={{ background: VEIL, left: leftInset }}
         initial={false}
         animate={{ top: cbottom }}
         transition={SPRING}
       />
-      {/* Left band: between top and bottom bands, left of the cutout. */}
+      {/* Left band: between top and bottom bands, between leftInset and the cutout. */}
       <motion.div
-        className="absolute left-0 pointer-events-auto"
-        style={{ background: VEIL }}
+        className="absolute pointer-events-auto"
+        style={{ background: VEIL, left: leftInset }}
         initial={false}
-        animate={{ top: cy, height: ch, width: Math.max(0, cx) }}
+        animate={{ top: cy, height: ch, width: Math.max(0, cx - leftInset) }}
         transition={SPRING}
       />
       {/* Right band: between top and bottom bands, right of the cutout. */}

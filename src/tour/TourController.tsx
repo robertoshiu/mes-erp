@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MutableRefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useMotionValue } from 'framer-motion'
 import type { Subscription } from 'rxjs'
@@ -79,6 +79,14 @@ function TourStepView({
   const [rect, setRect] = useState<SpotRect | null>(null)
   const [liveFired, setLiveFired] = useState(false)
 
+  // Width of the left chrome (sidebar nav) so the veil + card never cover it.
+  // Measured from the live DOM (not hard-coded) so it tracks the real layout.
+  const [leftInset, setLeftInset] = useState(0)
+  useLayoutEffect(() => {
+    const nav = document.querySelector('[data-tour="nav.sidebar"]')
+    if (nav) setLeftInset(Math.round(nav.getBoundingClientRect().right))
+  }, [])
+
   // Autoplay progress (0..1) lives in a MotionValue so the rAF loop can drive
   // the bar at 60fps WITHOUT a React re-render per frame. A fresh TourStepView
   // mounts per step (keyed by step id in TourController), so this resets to 0
@@ -113,9 +121,13 @@ function TourStepView({
 
     const track = (el: Element) => {
       // setRect that bails when the geometry is unchanged (within epsilon), so
-      // the 1s safety interval / observers can't trigger no-op re-renders.
+      // the 1s safety interval / observers can't trigger no-op re-renders. A
+      // zero-size read (element mounted but not yet laid out — common while the
+      // lazy module chunk is still swapping in) is ignored so the spotlight
+      // never snaps to a degenerate 0×0 box.
       const commit = () => {
         const next = measure(el)
+        if (next.width <= 0 || next.height <= 0) return
         setRect(prev => (rectsEqual(prev, next) ? prev : next))
       }
 
@@ -127,6 +139,16 @@ function TourStepView({
       let firstRaf = requestAnimationFrame(() => {
         firstRaf = requestAnimationFrame(commit)
       })
+
+      // Re-measure when the target's entrance animation/transition ends. The
+      // re-aimed hero targets mount with `animate-rise` (a translateY(6px)→0
+      // transform); getBoundingClientRect() INCLUDES that transform, so a rect
+      // read mid-rise lands ~6px low. A transform change fires neither scroll,
+      // resize, nor ResizeObserver, so listen for the animation end explicitly
+      // to snap the spotlight/card onto the settled position.
+      const onAnimSettle = () => commit()
+      el.addEventListener('animationend', onAnimSettle)
+      el.addEventListener('transitionend', onAnimSettle)
 
       // rAF-coalesced live update: at most one getBoundingClientRect+setRect per
       // frame regardless of how many scroll/resize events fire.
@@ -161,6 +183,8 @@ function TourStepView({
       cleanupTrack = () => {
         cancelAnimationFrame(firstRaf)
         if (pendingRaf) cancelAnimationFrame(pendingRaf)
+        el.removeEventListener('animationend', onAnimSettle)
+        el.removeEventListener('transitionend', onAnimSettle)
         window.removeEventListener('scroll', requestUpdate, true)
         window.removeEventListener('resize', requestUpdate)
         window.removeEventListener('scrollend', settle, true)
@@ -279,12 +303,13 @@ function TourStepView({
 
   return (
     <>
-      <Spotlight rect={rect} pulse={step.pulse} />
+      <Spotlight rect={rect} pulse={step.pulse} leftInset={leftInset} />
       <TourCard
         step={step}
         chapter={chapter}
         lang={lang}
         rect={rect}
+        leftInset={leftInset}
         flatIndex={flatIndex}
         flatTotal={flatTotal}
         chapterCount={tour.chapters.length}

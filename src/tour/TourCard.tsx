@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence, type MotionValue } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Play, Pause, X, Radio } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -29,17 +29,29 @@ interface CardPos {
   placement: Placement
 }
 
-/** Pick a position near the rect by placement, clamped into the viewport. */
-function computePos(
+/**
+ * Pick a position near the rect by placement, clamped into the viewport.
+ * `leftInset` is the left chrome width (sidebar): the card is never allowed to
+ * sit on top of it. Without this, a near-fullscreen hero (e.g. the cockpit
+ * swimlane) has no room on any side, auto-placement falls to 'left', and the
+ * card clamps onto the sidebar — landing the description far from the highlight
+ * and covering the nav. Clamping to `leftInset + MARGIN` keeps it in the main
+ * content column.
+ */
+export function computePos(
   rect: SpotRect | null,
   want: TourStep['placement'],
   cardH: number,
+  leftInset = 0,
 ): CardPos {
   const vw = window.innerWidth
   const vh = window.innerHeight
+  const minLeft = leftInset + MARGIN
   if (!rect) {
+    // Center within the main content area (right of the sidebar), not the whole
+    // viewport, so the card reads as centered over the content the user sees.
     return {
-      left: (vw - CARD_W) / 2,
+      left: leftInset + (vw - leftInset - CARD_W) / 2,
       top: Math.max(MARGIN, (vh - cardH) / 2),
       placement: 'center',
     }
@@ -83,7 +95,7 @@ function computePos(
       top = rect.y + rect.height / 2 - cardH / 2
       break
   }
-  left = Math.min(Math.max(MARGIN, left), vw - CARD_W - MARGIN)
+  left = Math.min(Math.max(minLeft, left), Math.max(minLeft, vw - CARD_W - MARGIN))
   top = Math.min(Math.max(MARGIN, top), Math.max(MARGIN, vh - cardH - MARGIN))
   return { left, top, placement: place }
 }
@@ -93,6 +105,8 @@ interface TourCardProps {
   chapter: TourChapter
   lang: Lang
   rect: SpotRect | null
+  /** Left chrome width (sidebar) the card must not overlap. */
+  leftInset?: number
   flatIndex: number
   flatTotal: number
   chapterCount: number
@@ -114,6 +128,7 @@ export function TourCard({
   chapter,
   lang,
   rect,
+  leftInset = 0,
   flatIndex,
   flatTotal,
   chapterCount,
@@ -130,14 +145,25 @@ export function TourCard({
 }: TourCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const [cardH, setCardH] = useState(220)
-  const pos = useMemo(() => computePos(rect, step.placement, cardH), [rect, step.placement, cardH])
+  const pos = useMemo(
+    () => computePos(rect, step.placement, cardH, leftInset),
+    [rect, step.placement, cardH, leftInset],
+  )
 
   // Move focus to the card on step change, without scrolling the page.
   useEffect(() => {
     cardRef.current?.focus({ preventScroll: true })
   }, [step.id])
 
-  // Measure card height for positioning (re-measured when content/lang changes).
+  // Measure the real card height BEFORE first paint so the very first
+  // computePos() uses it (the 220 fallback would otherwise mis-center the card
+  // vs. the spotlight ring on left/right placements until the observer fires).
+  useLayoutEffect(() => {
+    const h = cardRef.current?.offsetHeight
+    if (h) setCardH(h)
+  }, [step.id, lang])
+
+  // Keep tracking height for later content changes (e.g. waitFor→LIVE swap).
   useEffect(() => {
     const el = cardRef.current
     if (!el) return
