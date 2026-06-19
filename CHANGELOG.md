@@ -4,6 +4,11 @@ All notable changes to FabPulse are documented in this file.
 
 Format: `## [MAJOR.MINOR.PATCH.MICRO] - YYYY-MM-DD` with Added / Changed / Fixed / Removed sections.
 
+## [1.1.2.0] - 2026-06-19
+
+### Fixed
+- **Guided tour overlay no longer collides with the layout.** On screens whose hero fills most of the view (the document-flow swimlanes, and the other full-width heroes), the description card was clamping to the far-left edge and landing on top of the left navigation menu — far from the visual it was describing. The card now stays in the main content column and never covers the sidebar. The dim spotlight veil also kept the entire side menu darkened and un-clickable during the tour; it now leaves the sidebar bright and usable on every step, while still framing it correctly on the step that highlights the nav itself. And the highlight frame is re-measured once each screen's entrance animation settles, so it lands precisely on its target instead of a few pixels low while the hero animates in.
+
 ## [1.1.1.0] - 2026-06-13
 
 ### Fixed
