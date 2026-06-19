@@ -96,13 +96,19 @@ function TourStepView({
   // autoplay gate: whether the duration timer may run (waitFor resolved).
   const liveReadyRef = useRef(!step.waitFor)
 
-  // --- Navigate to the step's route on enter (and on autoplay resume). ---
+  // --- Navigate to the step's route on enter (and on resume). ---
   // Marks the navigation as engine-initiated (engineNavRef) so the controller's
   // activeRoute subscription doesn't mistake it for a user sidebar click and
-  // pause the tour. Re-runs when `paused` clears so resuming a paused tour
-  // re-asserts the step's route (the user may have navigated away while paused).
+  // pause the tour. Runs on every step change AND when `paused` toggles:
+  //  - Entering a step asserts its route EVEN WHILE PAUSED — a paused user who
+  //    clicks Next/→ is explicitly advancing the tour, so the new step's target
+  //    must be brought on screen; otherwise its target never mounts and the
+  //    spotlight/card strand on the previous screen.
+  //  - Resuming re-asserts the current step's route (the user may have clicked
+  //    the sidebar to look around while paused).
+  // It deliberately does NOT depend on activeRoute, so a user who navigates away
+  // while paused is NOT yanked back until they advance a step or resume.
   useEffect(() => {
-    if (paused) return
     const ui = useUiStore.getState()
     if (step.route && ui.activeRoute !== step.route) {
       engineNavRef.current = step.route

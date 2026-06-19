@@ -61,6 +61,26 @@ function twoStepTour(): TourDefinition {
   }
 }
 
+/** A two-step tour whose steps each assert a route (for paused-navigation). */
+function routedTour(): TourDefinition {
+  return {
+    id: 'ctl-routed',
+    title: { zh: '路由', en: 'Routed' },
+    description: { zh: 'd', en: 'd' },
+    estMinutes: 1,
+    chapters: [
+      {
+        id: 'c',
+        title: { zh: '章', en: 'Ch' },
+        steps: [
+          { id: 'r0', route: 'fab-floor', title: { zh: '步0', en: 'Step0' }, body: { zh: 'b', en: 'b' } },
+          { id: 'r1', route: 'equipment', title: { zh: '步1', en: 'Step1' }, body: { zh: 'b', en: 'b' } },
+        ],
+      },
+    ],
+  }
+}
+
 let anchor: HTMLDivElement
 let rafSpy: ReturnType<typeof vi.spyOn>
 
@@ -139,6 +159,29 @@ describe('TourController', () => {
     })
     expect(useTourStore.getState().stepIdx).toBe(1)
     expect(screen.getByRole('heading', { name: '步驟二' })).toBeInTheDocument()
+  })
+
+  it('asserts the step route on manual advance even while paused', () => {
+    // Regression: a paused user clicking Next/→ must still navigate to the new
+    // step's route, or the target never mounts and the spotlight strands on the
+    // previous screen. The route effect used to bail on `if (paused) return`.
+    render(<TourController eventBus={stubBus} />)
+    act(() => {
+      useTourStore.getState().startTourDef(routedTour())
+    })
+    expect(useUiStore.getState().activeRoute).toBe('fab-floor')
+    act(() => {
+      useTourStore.getState().pause()
+    })
+    expect(useTourStore.getState().status).toBe('paused')
+    act(() => {
+      fireEvent.keyDown(window, { key: 'ArrowRight' })
+    })
+    expect(useTourStore.getState().stepIdx).toBe(1)
+    // Route asserted despite being paused; the engine nav must not flip the
+    // tour out of 'paused' (engineNavRef shields it from the activeRoute sub).
+    expect(useUiStore.getState().activeRoute).toBe('equipment')
+    expect(useTourStore.getState().status).toBe('paused')
   })
 
   it('steps back on ArrowLeft', () => {
