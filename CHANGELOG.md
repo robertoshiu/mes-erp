@@ -4,6 +4,11 @@ All notable changes to FabPulse are documented in this file.
 
 Format: `## [MAJOR.MINOR.PATCH.MICRO] - YYYY-MM-DD` with Added / Changed / Fixed / Removed sections.
 
+## [1.1.3.0] - 2026-06-19
+
+### Fixed
+- **Guided tour now follows you when you pause and click through manually.** Pausing the tour and then stepping with Next / → used to leave the card describing a screen you weren't on — the step changed but the app never switched to that step's screen, so the highlight had nothing to point at and drifted to the center. Stepping while paused now navigates to each step's screen just like autoplay does, so the spotlight always frames the right thing. Clicking the sidebar to look around while paused still leaves you where you are until you advance a step or resume.
+
 ## [1.1.2.0] - 2026-06-19
 
 ### Fixed
